@@ -1,79 +1,36 @@
-# PennDash - React Native App
+# PennDash - Campus Food Delivery
 
-A dining hall delivery app for UPenn students built with React Native and Expo.
+A food delivery app designed for UPenn students to request and fulfill dining hall deliveries.
 
 ## Features
 
-1. **Login & Verification** - Validates UPenn email addresses (@upenn.edu, @seas.upenn.edu, @wharton.upenn.edu) with email verification
-2. **Delivery Requests** - Students can post delivery requests with:
-   - Tip amount
-   - Dining hall selection
-   - Dorm location
-   - Order description
-3. **Sorted Orders** - All orders sorted by tip amount (lowest to highest)
+- **Email Verification**: Login with your Penn email (@upenn.edu, @seas.upenn.edu, @wharton.upenn.edu, @sas.upenn.edu)
+- **Delivery Requests**: Post requests with your offer amount, dining hall, and dorm
+- **Order Board**: View all open deliveries sorted by price (lowest first)
+- **Claim Deliveries**: Pick up orders to earn money
 
-## Setup Instructions
-
-### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
-- Expo CLI (`npm install -g expo-cli`)
-- Expo Go app on your phone (for testing)
-
-### Installation
+## Setup
 
 1. Install dependencies:
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
 
-2. Install the Picker component:
-```bash
-npx expo install @react-native-picker/picker
-```
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-3. Start the development server:
-```bash
-npx expo start
-```
-
-4. Scan the QR code with Expo Go (Android) or Camera app (iOS)
-
-## Demo Credentials
-
-- **Email:** student@upenn.edu
-- **Password:** penn123
-
-## Project Structure
-
-```
-penndash/
-├── App.js           # Entry point
-├── PennDash.js      # Main app component
-├── app.json         # Expo configuration
-└── package.json     # Dependencies
-```
-
-## Customization
-
-### Dining Halls
-Edit the `DINING_HALLS` array in `PennDash.js` to add/remove dining locations.
-
-### Dorms
-Edit the `DORMS` array in `PennDash.js` to add/remove residence halls.
-
-## Building for Production
-
-```bash
-# Build for iOS
-npx expo build:ios
-
-# Build for Android
-npx expo build:android
-```
+3. Open http://localhost:5173 in your browser
 
 ## Tech Stack
 
-- React Native
-- Expo
-- @react-native-picker/picker
+- React 18
+- Vite
+- LocalStorage for data persistence
+
+## Usage
+
+1. Enter your Penn email (e.g., `yourname@seas.upenn.edu`)
+2. Enter the verification code shown (demo mode)
+3. Post delivery requests or claim open orders
