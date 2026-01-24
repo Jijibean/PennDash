@@ -4,20 +4,23 @@ import React, { useState, useEffect } from 'react';
 // SUPABASE CONFIGURATION
 // ============================================
 // Replace these with your Supabase project credentials
-const SUPABASE_URL = 'https://lpvhvotwyovwnahdqqod.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_T_1ryXZH6YmVytmcoZwTGw_wAV4oCxD';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // e.g., 'https://xxxxx.supabase.co'
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 // Simple Supabase client (no npm package needed)
 const supabase = {
   auth: {
-    signInWithOtp: async ({ email }) => {
-      const response = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+    signInWithMagicLink: async ({ email }) => {
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/magiclink`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ email, create_user: true }),
+        body: JSON.stringify({ 
+          email, 
+          create_user: true,
+        }),
       });
       if (!response.ok) {
         const error = await response.json();
@@ -25,24 +28,17 @@ const supabase = {
       }
       return { error: null };
     },
-    verifyOtp: async ({ email, token, type }) => {
-      const response = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({ email, token, type }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        return { data: null, error: data };
-      }
-      return { data, error: null };
-    },
     getSession: async () => {
       const session = localStorage.getItem('penndash_session');
       return { data: { session: session ? JSON.parse(session) : null } };
+    },
+    getUser: async () => {
+      const session = localStorage.getItem('penndash_session');
+      if (session) {
+        const parsed = JSON.parse(session);
+        return { data: { user: parsed.user }, error: null };
+      }
+      return { data: { user: null }, error: null };
     },
     signOut: async () => {
       localStorage.removeItem('penndash_session');
@@ -51,22 +47,26 @@ const supabase = {
   },
   from: (table) => ({
     select: async (columns = '*') => {
+      const session = localStorage.getItem('penndash_session');
+      const token = session ? JSON.parse(session).access_token : SUPABASE_ANON_KEY;
       const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${columns}`, {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       const data = await response.json();
       return { data, error: response.ok ? null : data };
     },
     insert: async (rows) => {
+      const session = localStorage.getItem('penndash_session');
+      const token = session ? JSON.parse(session).access_token : SUPABASE_ANON_KEY;
       const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${token}`,
           'Prefer': 'return=representation',
         },
         body: JSON.stringify(rows),
@@ -76,12 +76,14 @@ const supabase = {
     },
     update: async (updates) => ({
       eq: async (column, value) => {
+        const session = localStorage.getItem('penndash_session');
+        const token = session ? JSON.parse(session).access_token : SUPABASE_ANON_KEY;
         const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${column}=eq.${value}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Authorization': `Bearer ${token}`,
             'Prefer': 'return=representation',
           },
           body: JSON.stringify(updates),
@@ -92,11 +94,13 @@ const supabase = {
     }),
     delete: () => ({
       eq: async (column, value) => {
+        const session = localStorage.getItem('penndash_session');
+        const token = session ? JSON.parse(session).access_token : SUPABASE_ANON_KEY;
         const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${column}=eq.${value}`, {
           method: 'DELETE',
           headers: {
             'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Authorization': `Bearer ${token}`,
           },
         });
         return { error: response.ok ? null : await response.json() };
@@ -146,7 +150,6 @@ const DORMS = [
 export default function PennDash() {
   const [currentView, setCurrentView] = useState('login');
   const [email, setEmail] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
   const [user, setUser] = useState(null);
   const [orders, setOrders] = useState([]);
   const [newOrder, setNewOrder] = useState({
@@ -159,11 +162,50 @@ export default function PennDash() {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [emailSent, setEmailSent] = useState(false);
 
-  // Check for existing session on mount
+  // Check for magic link callback or existing session on mount
   useEffect(() => {
-    checkSession();
+    handleMagicLinkCallback();
   }, []);
+
+  // Handle the magic link callback from Supabase
+  const handleMagicLinkCallback = async () => {
+    // Check URL hash for access_token (magic link callback)
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      
+      if (accessToken) {
+        // Decode the JWT to get user info
+        try {
+          const payload = JSON.parse(atob(accessToken.split('.')[1]));
+          const session = {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            user: {
+              id: payload.sub,
+              email: payload.email,
+            }
+          };
+          localStorage.setItem('penndash_session', JSON.stringify(session));
+          setUser(session.user);
+          setCurrentView('dashboard');
+          // Clean up the URL
+          window.history.replaceState(null, '', window.location.pathname);
+        } catch (e) {
+          console.error('Error parsing token:', e);
+        }
+      }
+      setInitialLoading(false);
+      return;
+    }
+    
+    // Check for existing session
+    checkSession();
+  };
 
   // Load orders when user is logged in
   useEffect(() => {
@@ -207,64 +249,33 @@ export default function PennDash() {
       return;
     }
     
-    setLoading(true);
-    
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.toLowerCase(),
-    });
-    
-    setLoading(false);
-    
-    if (error) {
-      setError('Failed to send verification code. Please try again.');
-      return;
-    }
-    
-    setCurrentView('verification');
-  };
-
-  const handleVerification = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    
-    const { data, error } = await supabase.auth.verifyOtp({
-      email: email.toLowerCase(),
-      token: verificationCode,
-      type: 'email',
-    });
-    
-    setLoading(false);
-    
-    if (error) {
-      setError('Invalid verification code. Please check your email and try again.');
-      return;
-    }
-    
-    // Save session
-    if (data?.session) {
-      localStorage.setItem('penndash_session', JSON.stringify(data.session));
-    }
-    
-    setUser(data.user || { email: email.toLowerCase() });
+    // DEMO MODE: Skip email verification, go straight to dashboard
+    const demoSession = {
+      access_token: 'demo_token',
+      user: {
+        id: 'demo_' + Date.now(),
+        email: email.toLowerCase(),
+      }
+    };
+    localStorage.setItem('penndash_session', JSON.stringify(demoSession));
+    setUser(demoSession.user);
     setCurrentView('dashboard');
   };
 
-  const handleResendCode = async () => {
+  const handleResendLink = async () => {
     setError('');
     setLoading(true);
     
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithMagicLink({
       email: email.toLowerCase(),
     });
     
     setLoading(false);
     
     if (error) {
-      setError('Failed to resend code. Please try again.');
+      setError('Failed to resend link. Please try again.');
     } else {
-      setError('');
-      alert('A new verification code has been sent to your email!');
+      alert('A new login link has been sent to your email!');
     }
   };
 
@@ -338,7 +349,7 @@ export default function PennDash() {
     await supabase.auth.signOut();
     setUser(null);
     setEmail('');
-    setVerificationCode('');
+    setEmailSent(false);
     setCurrentView('login');
   };
 
@@ -376,96 +387,24 @@ export default function PennDash() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="pennkey@seas.upenn.edu"
                 style={styles.input}
-                disabled={loading}
               />
             </div>
             
             {error && <p style={styles.error}>{error}</p>}
             
-            <button type="submit" style={styles.primaryButton} disabled={loading}>
-              {loading ? 'Sending Code...' : 'Continue'}
+            <button type="submit" style={styles.primaryButton}>
+              Continue
             </button>
           </form>
           
           <div style={styles.footer}>
-            <p style={styles.footerText}>
-              We'll send a verification code to your Penn email
-            </p>
+            <div style={styles.demoNotice}>
+              <span>🧪 Demo Mode - No email verification required</span>
+            </div>
             <p style={styles.footerSubtext}>
               Accepts @upenn.edu, @seas.upenn.edu, @wharton.upenn.edu, @sas.upenn.edu
             </p>
           </div>
-        </div>
-        
-        <div style={styles.decorativeCircle1}></div>
-        <div style={styles.decorativeCircle2}></div>
-      </div>
-    );
-  }
-
-  // Verification View
-  if (currentView === 'verification') {
-    return (
-      <div style={styles.container}>
-        <div style={styles.loginCard}>
-          <div style={styles.logoSection}>
-            <div style={styles.logo}>
-              <span style={styles.logoIcon}>📧</span>
-              <span style={styles.logoText}>Check Your Email</span>
-            </div>
-          </div>
-          
-          <div style={styles.verificationInfo}>
-            <p style={styles.verificationText}>
-              We sent a 6-digit verification code to:
-            </p>
-            <p style={styles.emailDisplay}>{email}</p>
-            <p style={styles.verificationHint}>
-              Check your inbox (and spam folder) for the code
-            </p>
-          </div>
-          
-          <form onSubmit={handleVerification} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Verification Code</label>
-              <input
-                type="text"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                placeholder="000000"
-                style={styles.codeInput}
-                maxLength={6}
-                disabled={loading}
-              />
-            </div>
-            
-            {error && <p style={styles.error}>{error}</p>}
-            
-            <button type="submit" style={styles.primaryButton} disabled={loading || verificationCode.length !== 6}>
-              {loading ? 'Verifying...' : 'Verify & Sign In'}
-            </button>
-            
-            <button 
-              type="button" 
-              onClick={handleResendCode}
-              style={styles.linkButton}
-              disabled={loading}
-            >
-              Didn't receive the code? Resend
-            </button>
-            
-            <button 
-              type="button" 
-              onClick={() => {
-                setCurrentView('login');
-                setError('');
-                setVerificationCode('');
-              }}
-              style={styles.secondaryButton}
-            >
-              ← Use a different email
-            </button>
-          </form>
         </div>
         
         <div style={styles.decorativeCircle1}></div>
@@ -856,6 +795,19 @@ const styles = {
     fontSize: '12px',
     color: '#94a3b8',
     margin: 0
+  },
+  demoNotice: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '12px 16px',
+    backgroundColor: '#fef3c7',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: '#92400e',
+    marginBottom: '12px',
+    border: '1px solid #fcd34d'
   },
   decorativeCircle1: {
     position: 'absolute',
