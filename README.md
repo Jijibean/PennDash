@@ -1,6 +1,6 @@
 # PennDash - Campus Food Delivery
 
-A food delivery app for UPenn students with real email verification powered by Supabase.
+A food delivery app for UPenn students.
 
 ## Features
 
