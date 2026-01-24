@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 // SUPABASE CONFIGURATION
 // ============================================
 // Replace these with your Supabase project credentials
-const SUPABASE_URL = 'https://lpvhvotwyovwnahdqqod.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwdmh2b3R3eW92d25haGRxcW9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNjg4OTUsImV4cCI6MjA4NDg0NDg5NX0.T2hd8Grico2Q3o0FW62e9SxUCMMTYFurhFP5gR-6zHc';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // e.g., 'https://xxxxx.supabase.co'
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 // Simple Supabase client (no npm package needed)
 const supabase = {
@@ -187,6 +187,42 @@ export default function PennDash() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [emailSent, setEmailSent] = useState(false);
 
+
+// Sorting controls for Available Deliveries
+const [sortPrimary, setSortPrimary] = useState('amount'); // amount | dining_hall | dorm | created_at
+const [sortSecondary, setSortSecondary] = useState(''); // '' for none, or same keys
+const [sortDir, setSortDir] = useState('desc'); // asc | desc
+
+const compareField = (a, b, key) => {
+  if (key === 'amount') return (a.amount ?? 0) - (b.amount ?? 0);
+
+  if (key === 'dining_hall') {
+    return String(a.dining_hall ?? '').localeCompare(String(b.dining_hall ?? ''), undefined, {
+      sensitivity: 'base',
+    });
+  }
+
+  if (key === 'dorm') {
+    return String(a.dorm ?? '').localeCompare(String(b.dorm ?? ''), undefined, {
+      sensitivity: 'base',
+    });
+  }
+
+  if (key === 'created_at') {
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  }
+
+  return 0;
+};
+
+const compareOrders = (a, b, keys, dir) => {
+  const direction = dir === 'asc' ? 1 : -1;
+  for (const key of keys.filter(Boolean)) {
+    const c = compareField(a, b, key);
+    if (c !== 0) return c * direction;
+  }
+  return 0;
+};
   // Check for magic link callback or existing session on mount
   useEffect(() => {
     handleMagicLinkCallback();
@@ -252,10 +288,8 @@ export default function PennDash() {
       .select('*');
     
     if (!error && data) {
-      // Sort by amount (lowest first)
-      const sortedOrders = data.sort((a, b) => a.amount - b.amount);
-      setOrders(sortedOrders);
-    }
+      setOrders(data);
+}
   };
 
   const validateEmail = (email) => {
@@ -438,6 +472,9 @@ export default function PennDash() {
 
   // Dashboard View
   const openOrders = orders.filter(o => o.status === 'open');
+  const sortedOpenOrders = [...openOrders].sort((a, b) =>
+    compareOrders(a, b, [sortPrimary, sortSecondary], sortDir)
+  );
   const myOrders = orders.filter(o => o.user_email === user.email);
   const claimedByMe = orders.filter(o => o.claimed_by === user.email);
 
@@ -537,6 +574,45 @@ export default function PennDash() {
             Available Deliveries
             <span style={styles.orderCount}>{openOrders.length} open</span>
           </h2>
+<div style={styles.sortBar}>
+  <div style={styles.sortGroup}>
+    <span style={styles.sortLabel}>Sort by</span>
+    <select
+      value={sortPrimary}
+      onChange={(e) => setSortPrimary(e.target.value)}
+      style={styles.sortSelect}
+    >
+      <option value="amount">Amount ($)</option>
+      <option value="created_at">Time Posted</option>
+    </select>
+  </div>
+
+  <div style={styles.sortGroup}>
+    <span style={styles.sortLabel}>Then by</span>
+    <select
+      value={sortSecondary}
+      onChange={(e) => setSortSecondary(e.target.value)}
+      style={styles.sortSelect}
+    >
+      <option value="">None</option>
+      <option value="amount">Amount ($)</option>
+      <option value="created_at">Time Posted</option>
+    </select>
+  </div>
+
+  <div style={styles.sortGroup}>
+    <span style={styles.sortLabel}>Direction</span>
+    <select
+      value={sortDir}
+      onChange={(e) => setSortDir(e.target.value)}
+      style={styles.sortSelect}
+    >
+      <option value="desc">Descending</option>
+      <option value="asc">Ascending</option>
+    </select>
+  </div>
+</div>
+
           
           {openOrders.length === 0 ? (
             <div style={styles.emptyState}>
@@ -545,7 +621,7 @@ export default function PennDash() {
             </div>
           ) : (
             <div style={styles.ordersGrid}>
-              {openOrders.map(order => (
+              {sortedOpenOrders.map(order => (
                 <div key={order.id} style={styles.orderCard}>
                   <div style={styles.orderHeader}>
                     <span style={styles.orderAmount}>${order.amount.toFixed(2)}</span>
@@ -945,6 +1021,31 @@ const styles = {
     padding: '4px 12px',
     borderRadius: '20px'
   },
+sortBar: {
+  display: 'flex',
+  gap: '12px',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  marginBottom: '16px'
+},
+sortGroup: {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px'
+},
+sortLabel: {
+  fontSize: '13px',
+  fontWeight: 600,
+  color: '#475569'
+},
+sortSelect: {
+  padding: '10px 12px',
+  borderRadius: '12px',
+  border: '1px solid #e2e8f0',
+  backgroundColor: 'white',
+  fontSize: '14px',
+  outline: 'none'
+},
   orderFormCard: {
     background: 'white',
     borderRadius: '16px',
