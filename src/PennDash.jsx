@@ -423,8 +423,8 @@ export default function PennDash() {
       {/* Header */}
       <header style={styles.header}>
         <div style={styles.headerContent}>
-          <div style={styles.logo}>
-            <span style={styles.logoIcon}>🍽️</span>
+          <div style={styles.headerLogo}>
+            <span style={styles.headerLogoIcon}>🚀</span>
             <span style={styles.logoTextSmall}>PennDash</span>
           </div>
           <div style={styles.userInfo}>
@@ -694,8 +694,16 @@ const styles = {
   logoTextSmall: {
     fontSize: '24px',
     fontWeight: '700',
-    color: '#011F5B',
+    color: 'white',
     letterSpacing: '-0.5px'
+  },
+  headerLogo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  headerLogoIcon: {
+    fontSize: '28px',
   },
   tagline: {
     color: '#64748b',
