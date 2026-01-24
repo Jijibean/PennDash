@@ -1,5 +1,113 @@
 import React, { useState, useEffect } from 'react';
 
+// ============================================
+// SUPABASE CONFIGURATION
+// ============================================
+// Replace these with your Supabase project credentials
+const SUPABASE_URL = 'https://lpvhvotwyovwnahdqqod.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_T_1ryXZH6YmVytmcoZwTGw_wAV4oCxD';
+
+// Simple Supabase client (no npm package needed)
+const supabase = {
+  auth: {
+    signInWithOtp: async ({ email }) => {
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ email, create_user: true }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        return { error };
+      }
+      return { error: null };
+    },
+    verifyOtp: async ({ email, token, type }) => {
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ email, token, type }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        return { data: null, error: data };
+      }
+      return { data, error: null };
+    },
+    getSession: async () => {
+      const session = localStorage.getItem('penndash_session');
+      return { data: { session: session ? JSON.parse(session) : null } };
+    },
+    signOut: async () => {
+      localStorage.removeItem('penndash_session');
+      return { error: null };
+    },
+  },
+  from: (table) => ({
+    select: async (columns = '*') => {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${columns}`, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+      });
+      const data = await response.json();
+      return { data, error: response.ok ? null : data };
+    },
+    insert: async (rows) => {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(rows),
+      });
+      const data = await response.json();
+      return { data, error: response.ok ? null : data };
+    },
+    update: async (updates) => ({
+      eq: async (column, value) => {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${column}=eq.${value}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        return { data, error: response.ok ? null : data };
+      },
+    }),
+    delete: () => ({
+      eq: async (column, value) => {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${column}=eq.${value}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+        });
+        return { error: response.ok ? null : await response.json() };
+      },
+    }),
+  }),
+};
+
+// ============================================
+// CONSTANTS
+// ============================================
 const DINING_HALLS = [
   'Hill House',
   '1920 Commons',
@@ -32,11 +140,13 @@ const DORMS = [
   'Chestnut Hall'
 ];
 
+// ============================================
+// MAIN APP COMPONENT
+// ============================================
 export default function PennDash() {
   const [currentView, setCurrentView] = useState('login');
   const [email, setEmail] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
-  const [generatedCode, setGeneratedCode] = useState('');
   const [user, setUser] = useState(null);
   const [orders, setOrders] = useState([]);
   const [newOrder, setNewOrder] = useState({
@@ -46,70 +156,119 @@ export default function PennDash() {
     details: ''
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  // Load orders from storage on mount
+  // Check for existing session on mount
   useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        const result = await window.storage.get('penndash-orders', true);
-        if (result && result.value) {
-          setOrders(JSON.parse(result.value));
-        }
-      } catch (e) {
-        // No orders yet, start fresh
-        setOrders([]);
-      }
-    };
-    loadOrders();
+    checkSession();
   }, []);
 
-  // Save orders to storage whenever they change
-  const saveOrders = async (newOrders) => {
-    try {
-      await window.storage.set('penndash-orders', JSON.stringify(newOrders), true);
-    } catch (e) {
-      console.error('Failed to save orders:', e);
+  // Load orders when user is logged in
+  useEffect(() => {
+    if (user) {
+      loadOrders();
+    }
+  }, [user]);
+
+  const checkSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      setUser(session.user);
+      setCurrentView('dashboard');
+    }
+    setInitialLoading(false);
+  };
+
+  const loadOrders = async () => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*');
+    
+    if (!error && data) {
+      // Sort by amount (lowest first)
+      const sortedOrders = data.sort((a, b) => a.amount - b.amount);
+      setOrders(sortedOrders);
     }
   };
 
   const validateEmail = (email) => {
     const lowerEmail = email.toLowerCase();
-    // Accept all UPenn email formats: @upenn.edu, @seas.upenn.edu, @sas.upenn.edu, @wharton.upenn.edu, etc.
     return lowerEmail.endsWith('.upenn.edu') || lowerEmail.endsWith('@upenn.edu');
   };
 
-  const generateVerificationCode = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  };
-
-  const handleEmailSubmit = (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
     if (!validateEmail(email)) {
-      setError('Please use a valid @upenn.edu email address');
+      setError('Please use a valid Penn email address (@upenn.edu, @seas.upenn.edu, @wharton.upenn.edu, etc.)');
       return;
     }
     
-    const code = generateVerificationCode();
-    setGeneratedCode(code);
+    setLoading(true);
+    
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.toLowerCase(),
+    });
+    
+    setLoading(false);
+    
+    if (error) {
+      setError('Failed to send verification code. Please try again.');
+      return;
+    }
+    
     setCurrentView('verification');
   };
 
-  const handleVerification = (e) => {
+  const handleVerification = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     
-    if (verificationCode === generatedCode) {
-      setUser({ email: email.toLowerCase() });
-      setCurrentView('dashboard');
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: email.toLowerCase(),
+      token: verificationCode,
+      type: 'email',
+    });
+    
+    setLoading(false);
+    
+    if (error) {
+      setError('Invalid verification code. Please check your email and try again.');
+      return;
+    }
+    
+    // Save session
+    if (data?.session) {
+      localStorage.setItem('penndash_session', JSON.stringify(data.session));
+    }
+    
+    setUser(data.user || { email: email.toLowerCase() });
+    setCurrentView('dashboard');
+  };
+
+  const handleResendCode = async () => {
+    setError('');
+    setLoading(true);
+    
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.toLowerCase(),
+    });
+    
+    setLoading(false);
+    
+    if (error) {
+      setError('Failed to resend code. Please try again.');
     } else {
-      setError('Invalid verification code. Please try again.');
+      setError('');
+      alert('A new verification code has been sent to your email!');
     }
   };
 
-  const handleOrderSubmit = (e) => {
+  const handleOrderSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
@@ -124,47 +283,76 @@ export default function PennDash() {
       return;
     }
     
+    setLoading(true);
+    
     const order = {
-      id: Date.now(),
-      userEmail: user.email,
+      user_email: user.email,
       amount: amount,
-      diningHall: newOrder.diningHall,
+      dining_hall: newOrder.diningHall,
       dorm: newOrder.dorm,
       details: newOrder.details,
-      timestamp: new Date().toISOString(),
-      status: 'open'
+      status: 'open',
+      created_at: new Date().toISOString(),
     };
     
-    const updatedOrders = [...orders, order].sort((a, b) => a.amount - b.amount);
-    setOrders(updatedOrders);
-    saveOrders(updatedOrders);
+    const { data, error } = await supabase
+      .from('orders')
+      .insert([order]);
+    
+    setLoading(false);
+    
+    if (error) {
+      setError('Failed to post order. Please try again.');
+      return;
+    }
     
     setNewOrder({ amount: '', diningHall: '', dorm: '', details: '' });
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
+    loadOrders();
   };
 
-  const handleCancelOrder = (orderId) => {
-    const updatedOrders = orders.filter(o => o.id !== orderId);
-    setOrders(updatedOrders);
-    saveOrders(updatedOrders);
+  const handleCancelOrder = async (orderId) => {
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', orderId);
+    
+    if (!error) {
+      loadOrders();
+    }
   };
 
-  const handleClaimOrder = (orderId) => {
-    const updatedOrders = orders.map(o => 
-      o.id === orderId ? { ...o, status: 'claimed', claimedBy: user.email } : o
-    );
-    setOrders(updatedOrders);
-    saveOrders(updatedOrders);
+  const handleClaimOrder = async (orderId) => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'claimed', claimed_by: user.email })
+      .eq('id', orderId);
+    
+    if (!error) {
+      loadOrders();
+    }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     setEmail('');
     setVerificationCode('');
-    setGeneratedCode('');
     setCurrentView('login');
   };
+
+  // Initial loading state
+  if (initialLoading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loadingCard}>
+          <div style={styles.spinner}></div>
+          <p style={styles.loadingText}>Loading PennDash...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Login View
   if (currentView === 'login') {
@@ -181,25 +369,31 @@ export default function PennDash() {
           
           <form onSubmit={handleEmailSubmit} style={styles.form}>
             <div style={styles.inputGroup}>
-              <label style={styles.label}>Penn Email</label>
+              <label style={styles.label}>Login with your Penn Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="pennkey@upenn.edu"
+                placeholder="pennkey@seas.upenn.edu"
                 style={styles.input}
+                disabled={loading}
               />
             </div>
             
             {error && <p style={styles.error}>{error}</p>}
             
-            <button type="submit" style={styles.primaryButton}>
-              Continue with Penn Email
+            <button type="submit" style={styles.primaryButton} disabled={loading}>
+              {loading ? 'Sending Code...' : 'Continue'}
             </button>
           </form>
           
           <div style={styles.footer}>
-            <p style={styles.footerText}>Only available for UPenn students with a valid Penn email (@upenn.edu, @seas.upenn.edu, @wharton.upenn.edu, etc.)</p>
+            <p style={styles.footerText}>
+              We'll send a verification code to your Penn email
+            </p>
+            <p style={styles.footerSubtext}>
+              Accepts @upenn.edu, @seas.upenn.edu, @wharton.upenn.edu, @sas.upenn.edu
+            </p>
           </div>
         </div>
         
@@ -216,23 +410,19 @@ export default function PennDash() {
         <div style={styles.loginCard}>
           <div style={styles.logoSection}>
             <div style={styles.logo}>
-              <span style={styles.logoIcon}>🍽️</span>
-              <span style={styles.logoText}>PennDash</span>
+              <span style={styles.logoIcon}>📧</span>
+              <span style={styles.logoText}>Check Your Email</span>
             </div>
-            <p style={styles.tagline}>Verify Your Penn Email</p>
           </div>
           
           <div style={styles.verificationInfo}>
             <p style={styles.verificationText}>
-              A verification code has been sent to:
+              We sent a 6-digit verification code to:
             </p>
             <p style={styles.emailDisplay}>{email}</p>
-            
-            {/* Demo mode notice */}
-            <div style={styles.demoNotice}>
-              <span style={styles.demoIcon}>ℹ️</span>
-              <span>Demo Mode: Your code is <strong>{generatedCode}</strong></span>
-            </div>
+            <p style={styles.verificationHint}>
+              Check your inbox (and spam folder) for the code
+            </p>
           </div>
           
           <form onSubmit={handleVerification} style={styles.form}>
@@ -241,25 +431,39 @@ export default function PennDash() {
               <input
                 type="text"
                 value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                placeholder="Enter 6-digit code"
+                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000"
                 style={styles.codeInput}
                 maxLength={6}
+                disabled={loading}
               />
             </div>
             
             {error && <p style={styles.error}>{error}</p>}
             
-            <button type="submit" style={styles.primaryButton}>
-              Verify & Continue
+            <button type="submit" style={styles.primaryButton} disabled={loading || verificationCode.length !== 6}>
+              {loading ? 'Verifying...' : 'Verify & Sign In'}
             </button>
             
             <button 
               type="button" 
-              onClick={() => setCurrentView('login')}
+              onClick={handleResendCode}
+              style={styles.linkButton}
+              disabled={loading}
+            >
+              Didn't receive the code? Resend
+            </button>
+            
+            <button 
+              type="button" 
+              onClick={() => {
+                setCurrentView('login');
+                setError('');
+                setVerificationCode('');
+              }}
               style={styles.secondaryButton}
             >
-              ← Back to Login
+              ← Use a different email
             </button>
           </form>
         </div>
@@ -272,8 +476,8 @@ export default function PennDash() {
 
   // Dashboard View
   const openOrders = orders.filter(o => o.status === 'open');
-  const myOrders = orders.filter(o => o.userEmail === user.email);
-  const claimedByMe = orders.filter(o => o.claimedBy === user.email);
+  const myOrders = orders.filter(o => o.user_email === user.email);
+  const claimedByMe = orders.filter(o => o.claimed_by === user.email);
 
   return (
     <div style={styles.dashboardContainer}>
@@ -311,6 +515,7 @@ export default function PennDash() {
                     onChange={(e) => setNewOrder({...newOrder, amount: e.target.value})}
                     placeholder="5.00"
                     style={styles.formInput}
+                    disabled={loading}
                   />
                 </div>
                 <div style={styles.formField}>
@@ -319,6 +524,7 @@ export default function PennDash() {
                     value={newOrder.diningHall}
                     onChange={(e) => setNewOrder({...newOrder, diningHall: e.target.value})}
                     style={styles.formSelect}
+                    disabled={loading}
                   >
                     <option value="">Select dining hall...</option>
                     {DINING_HALLS.map(hall => (
@@ -332,6 +538,7 @@ export default function PennDash() {
                     value={newOrder.dorm}
                     onChange={(e) => setNewOrder({...newOrder, dorm: e.target.value})}
                     style={styles.formSelect}
+                    disabled={loading}
                   >
                     <option value="">Select dorm...</option>
                     {DORMS.map(dorm => (
@@ -348,14 +555,15 @@ export default function PennDash() {
                   onChange={(e) => setNewOrder({...newOrder, details: e.target.value})}
                   placeholder="e.g., 2 chicken sandwiches, 1 salad, room 305"
                   style={styles.formTextarea}
+                  disabled={loading}
                 />
               </div>
               
               {error && <p style={styles.formError}>{error}</p>}
               {showSuccess && <p style={styles.formSuccess}>✓ Order posted successfully!</p>}
               
-              <button type="submit" style={styles.submitButton}>
-                Post Delivery Request
+              <button type="submit" style={styles.submitButton} disabled={loading}>
+                {loading ? 'Posting...' : 'Post Delivery Request'}
               </button>
             </form>
           </div>
@@ -380,12 +588,12 @@ export default function PennDash() {
                   <div style={styles.orderHeader}>
                     <span style={styles.orderAmount}>${order.amount.toFixed(2)}</span>
                     <span style={styles.orderTime}>
-                      {new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                   <div style={styles.orderDetails}>
                     <div style={styles.orderRoute}>
-                      <span style={styles.routeFrom}>📍 {order.diningHall}</span>
+                      <span style={styles.routeFrom}>📍 {order.dining_hall}</span>
                       <span style={styles.routeArrow}>→</span>
                       <span style={styles.routeTo}>🏠 {order.dorm}</span>
                     </div>
@@ -394,7 +602,7 @@ export default function PennDash() {
                     )}
                   </div>
                   <div style={styles.orderActions}>
-                    {order.userEmail === user.email ? (
+                    {order.user_email === user.email ? (
                       <button 
                         onClick={() => handleCancelOrder(order.id)}
                         style={styles.cancelButton}
@@ -430,7 +638,7 @@ export default function PennDash() {
                       <div style={styles.activityInfo}>
                         <span style={styles.activityAmount}>${order.amount.toFixed(2)}</span>
                         <span style={styles.activityRoute}>
-                          {order.diningHall} → {order.dorm}
+                          {order.dining_hall} → {order.dorm}
                         </span>
                       </div>
                       <span style={{
@@ -454,7 +662,7 @@ export default function PennDash() {
                       <div style={styles.activityInfo}>
                         <span style={styles.activityAmount}>${order.amount.toFixed(2)}</span>
                         <span style={styles.activityRoute}>
-                          {order.diningHall} → {order.dorm}
+                          {order.dining_hall} → {order.dorm}
                         </span>
                       </div>
                       <span style={{...styles.statusBadge, backgroundColor: '#3b82f6'}}>
@@ -477,6 +685,9 @@ export default function PennDash() {
   );
 }
 
+// ============================================
+// STYLES
+// ============================================
 const styles = {
   // Login/Verification Styles
   container: {
@@ -489,6 +700,27 @@ const styles = {
     position: 'relative',
     overflow: 'hidden',
     fontFamily: '"Source Sans Pro", -apple-system, BlinkMacSystemFont, sans-serif'
+  },
+  loadingCard: {
+    background: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: '24px',
+    padding: '48px',
+    textAlign: 'center',
+    boxShadow: '0 25px 80px rgba(0, 0, 0, 0.4)',
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #e2e8f0',
+    borderTopColor: '#011F5B',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto 16px',
+  },
+  loadingText: {
+    color: '#64748b',
+    fontSize: '16px',
+    margin: 0,
   },
   loginCard: {
     background: 'rgba(255, 255, 255, 0.98)',
@@ -600,12 +832,28 @@ const styles = {
     cursor: 'pointer',
     fontFamily: 'inherit'
   },
+  linkButton: {
+    padding: '12px',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#011F5B',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    textDecoration: 'underline',
+  },
   footer: {
     marginTop: '32px',
     textAlign: 'center'
   },
   footerText: {
-    fontSize: '13px',
+    fontSize: '14px',
+    color: '#64748b',
+    margin: '0 0 8px 0'
+  },
+  footerSubtext: {
+    fontSize: '12px',
     color: '#94a3b8',
     margin: 0
   },
@@ -640,22 +888,12 @@ const styles = {
     color: '#011F5B',
     fontSize: '18px',
     fontWeight: '600',
-    margin: '0 0 20px 0'
+    margin: '0 0 12px 0'
   },
-  demoNotice: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    padding: '14px 20px',
-    backgroundColor: '#f0f9ff',
-    borderRadius: '10px',
-    fontSize: '14px',
-    color: '#0369a1',
-    border: '1px solid #bae6fd'
-  },
-  demoIcon: {
-    fontSize: '16px'
+  verificationHint: {
+    color: '#94a3b8',
+    fontSize: '13px',
+    margin: 0,
   },
 
   // Dashboard Styles
@@ -969,3 +1207,12 @@ const styles = {
     borderTop: '1px solid #e2e8f0'
   }
 };
+
+// Add keyframes for spinner animation
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(styleSheet);

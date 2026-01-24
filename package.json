@@ -1,7 +1,7 @@
 {
   "name": "penndash",
-  "version": "1.0.0",
-  "description": "Campus food delivery app for UPenn students",
+  "version": "2.0.0",
+  "description": "Campus food delivery app for UPenn students with Supabase backend",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
