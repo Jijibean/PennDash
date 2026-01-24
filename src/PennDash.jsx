@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 // SUPABASE CONFIGURATION
 // ============================================
 // Replace these with your Supabase project credentials
-const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // e.g., 'https://xxxxx.supabase.co'
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://lpvhvotwyovwnahdqqod.supabase.co'; // e.g., 'https://xxxxx.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwdmh2b3R3eW92d25haGRxcW9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNjg4OTUsImV4cCI6MjA4NDg0NDg5NX0.T2hd8Grico2Q3o0FW62e9SxUCMMTYFurhFP5gR-6zHc';
 
 // Simple Supabase client (no npm package needed)
 const supabase = {
@@ -136,17 +136,13 @@ const supabase = {
 // CONSTANTS
 // ============================================
 const DINING_HALLS = [
-  'Hill House',
-  '1920 Commons',
   'Houston Market',
-  'Falk Dining Commons',
-  'Lauder College House',
-  'Kings Court English House',
   'Accenture Café',
   'Pret A Manger',
   'Joe\'s Café',
   'McClelland Express'
 ];
+
 
 const DORMS = [
   'Hill College House',
@@ -508,8 +504,8 @@ const compareOrders = (a, b, keys, dir) => {
                   <label style={styles.formLabel}>Amount You'll Pay ($) *</label>
                   <input
                     type="number"
-                    step="0.50"
-                    min="0.50"
+                    step="0.01"
+                    min="0.01"
                     value={newOrder.amount}
                     onChange={(e) => setNewOrder({...newOrder, amount: e.target.value})}
                     placeholder="5.00"
