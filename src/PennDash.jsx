@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 // SUPABASE CONFIGURATION
 // ============================================
 // Replace these with your Supabase project credentials
-const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // e.g., 'https://xxxxx.supabase.co'
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://lpvhvotwyovwnahdqqod.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwdmh2b3R3eW92d25haGRxcW9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNjg4OTUsImV4cCI6MjA4NDg0NDg5NX0.T2hd8Grico2Q3o0FW62e9SxUCMMTYFurhFP5gR-6zHc';
 
 // Simple Supabase client (no npm package needed)
 const supabase = {
@@ -47,63 +47,86 @@ const supabase = {
   },
   from: (table) => ({
     select: async (columns = '*') => {
-      const session = localStorage.getItem('penndash_session');
-      const token = session ? JSON.parse(session).access_token : SUPABASE_ANON_KEY;
       const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${columns}`, {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
       });
-      const data = await response.json();
+      
+      const text = await response.text();
+      let data = [];
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          console.error('JSON parse error:', e);
+        }
+      }
+      
       return { data, error: response.ok ? null : data };
     },
     insert: async (rows) => {
-      const session = localStorage.getItem('penndash_session');
-      const token = session ? JSON.parse(session).access_token : SUPABASE_ANON_KEY;
       const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           'Prefer': 'return=representation',
         },
         body: JSON.stringify(rows),
       });
-      const data = await response.json();
-      return { data, error: response.ok ? null : data };
+      
+      // Handle empty responses
+      const text = await response.text();
+      let data = null;
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          console.error('JSON parse error:', e);
+        }
+      }
+      
+      return { data, error: response.ok ? null : (data || { message: 'Request failed' }) };
     },
     update: async (updates) => ({
       eq: async (column, value) => {
-        const session = localStorage.getItem('penndash_session');
-        const token = session ? JSON.parse(session).access_token : SUPABASE_ANON_KEY;
         const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${column}=eq.${value}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
             'Prefer': 'return=representation',
           },
           body: JSON.stringify(updates),
         });
-        const data = await response.json();
+        
+        const text = await response.text();
+        let data = null;
+        if (text) {
+          try {
+            data = JSON.parse(text);
+          } catch (e) {
+            console.error('JSON parse error:', e);
+          }
+        }
+        
         return { data, error: response.ok ? null : data };
       },
     }),
     delete: () => ({
       eq: async (column, value) => {
-        const session = localStorage.getItem('penndash_session');
-        const token = session ? JSON.parse(session).access_token : SUPABASE_ANON_KEY;
         const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${column}=eq.${value}`, {
           method: 'DELETE',
           headers: {
             'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           },
         });
-        return { error: response.ok ? null : await response.json() };
+        return { error: response.ok ? null : { message: 'Delete failed' } };
       },
     }),
   }),
