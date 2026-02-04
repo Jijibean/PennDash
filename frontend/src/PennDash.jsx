@@ -506,6 +506,14 @@ export default function PennDash() {
     return found ? found.minutes : 0;
   };
 
+  const getDeliveryByTime = (createdAt, deliveryTime) => {
+    const orderDate = new Date(createdAt);
+    const minutes = getTimeMinutes(deliveryTime);
+    if (minutes === 0) return 'ASAP';
+    const deliveryDate = new Date(orderDate.getTime() + minutes * 60000);
+    return deliveryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   const openOrders = orders.filter(o => o.status === 'open').sort((a, b) => {
     let comparison = 0;
     if (sortBy === 'amount') {
@@ -637,7 +645,7 @@ export default function PennDash() {
                   <div style={styles.orderHeader}>
                     <span style={styles.orderAmount}>${order.amount?.toFixed(2)}</span>
                     <div style={styles.orderMeta}>
-                      <span style={styles.deliveryTimeBadge}>{order.delivery_time || 'ASAP'}</span>
+                      <span style={styles.deliveryTimeBadge}>🕐 {getDeliveryByTime(order.created_at, order.delivery_time)}</span>
                       <span style={styles.orderTime}>{formatTime(order.created_at)}</span>
                     </div>
                   </div>
