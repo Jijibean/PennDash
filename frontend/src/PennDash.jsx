@@ -26,6 +26,14 @@ const supabase = {
 
 const DINING_HALLS = ['Houston Market', 'Accenture Café', 'Pret A Manger', "Joe's Café", 'McClelland Express'];
 const DORMS = ['Hill College House', 'Kings Court English House', 'Fisher Hassenfeld College House', 'Ware College House', 'Riepe College House', 'Harnwell College House', 'Harrison College House', 'Rodin College House', 'Lauder College House', 'Gregory College House', 'Stouffer College House', 'Du Bois College House', 'Sansom Place East', 'Sansom Place West', 'The Radian', 'Chestnut Hall'];
+const DELIVERY_TIMES = [
+  { value: 'ASAP', label: 'ASAP', minutes: 0 },
+  { value: '15min', label: '15 minutes', minutes: 15 },
+  { value: '30min', label: '30 minutes', minutes: 30 },
+  { value: '45min', label: '45 minutes', minutes: 45 },
+  { value: '1hr', label: '1 hour', minutes: 60 },
+  { value: '2hr', label: '2 hours', minutes: 120 }
+];
 
 function ChatPopup({ chat, currentUser, onClose, onSendMessage, messages, onMinimize, isMinimized }) {
   const [newMessage, setNewMessage] = useState('');
@@ -156,7 +164,9 @@ export default function PennDash() {
   const [countdown, setCountdown] = useState(0);
   const [devCode, setDevCode] = useState('');
   const [orders, setOrders] = useState([]);
-  const [newOrder, setNewOrder] = useState({ amount: '', diningHall: '', dorm: '', details: '' });
+  const [newOrder, setNewOrder] = useState({ amount: '', diningHall: '', dorm: '', details: '', deliveryTime: 'ASAP' });
+  const [sortBy, setSortBy] = useState('amount'); // 'amount', 'time', 'created_at'
+  const [sortDir, setSortDir] = useState('desc');
   const [showSuccess, setShowSuccess] = useState(false);
   const [chats, setChats] = useState([]);
   const [openChats, setOpenChats] = useState([]);
@@ -306,6 +316,7 @@ export default function PennDash() {
       dining_hall: newOrder.diningHall,
       dorm: newOrder.dorm,
       details: newOrder.details,
+      delivery_time: newOrder.deliveryTime,
       status: 'open',
       created_at: new Date().toISOString()
     }]);
@@ -314,7 +325,7 @@ export default function PennDash() {
       setError('Failed to post order');
       return;
     }
-    setNewOrder({ amount: '', diningHall: '', dorm: '', details: '' });
+    setNewOrder({ amount: '', diningHall: '', dorm: '', details: '', deliveryTime: 'ASAP' });
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
     loadOrders();
@@ -490,7 +501,22 @@ export default function PennDash() {
     );
   }
 
-  const openOrders = orders.filter(o => o.status === 'open').sort((a, b) => b.amount - a.amount);
+  const getTimeMinutes = (timeValue) => {
+    const found = DELIVERY_TIMES.find(t => t.value === timeValue);
+    return found ? found.minutes : 0;
+  };
+
+  const openOrders = orders.filter(o => o.status === 'open').sort((a, b) => {
+    let comparison = 0;
+    if (sortBy === 'amount') {
+      comparison = (b.amount || 0) - (a.amount || 0);
+    } else if (sortBy === 'time') {
+      comparison = getTimeMinutes(a.delivery_time) - getTimeMinutes(b.delivery_time);
+    } else if (sortBy === 'created_at') {
+      comparison = new Date(b.created_at) - new Date(a.created_at);
+    }
+    return sortDir === 'desc' ? comparison : -comparison;
+  });
 
   return (
     <div style={styles.dashboardContainer}>
@@ -548,6 +574,16 @@ export default function PennDash() {
                     {DORMS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
+                <div style={styles.formField}>
+                  <label style={styles.formLabel}>Delivery Time *</label>
+                  <select
+                    value={newOrder.deliveryTime}
+                    onChange={(e) => setNewOrder({...newOrder, deliveryTime: e.target.value})}
+                    style={styles.formSelect}
+                  >
+                    {DELIVERY_TIMES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
               </div>
               <div style={styles.formField}>
                 <label style={styles.formLabel}>Details (Optional)</label>
@@ -572,6 +608,23 @@ export default function PennDash() {
             Available Deliveries
             <span style={styles.orderCount}>{openOrders.length} open</span>
           </h2>
+          <div style={styles.sortBar}>
+            <div style={styles.sortGroup}>
+              <span style={styles.sortLabel}>Sort by</span>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={styles.sortSelect}>
+                <option value="amount">Amount ($)</option>
+                <option value="time">Delivery Time</option>
+                <option value="created_at">Date Posted</option>
+              </select>
+            </div>
+            <div style={styles.sortGroup}>
+              <span style={styles.sortLabel}>Order</span>
+              <select value={sortDir} onChange={(e) => setSortDir(e.target.value)} style={styles.sortSelect}>
+                <option value="desc">{sortBy === 'time' ? 'Urgent First' : 'High to Low'}</option>
+                <option value="asc">{sortBy === 'time' ? 'Flexible First' : 'Low to High'}</option>
+              </select>
+            </div>
+          </div>
           {openOrders.length === 0 ? (
             <div style={styles.emptyState}>
               <span style={styles.emptyIcon}>📭</span>
@@ -583,7 +636,10 @@ export default function PennDash() {
                 <div key={order.id} style={styles.orderCard}>
                   <div style={styles.orderHeader}>
                     <span style={styles.orderAmount}>${order.amount?.toFixed(2)}</span>
-                    <span style={styles.orderTime}>{formatTime(order.created_at)}</span>
+                    <div style={styles.orderMeta}>
+                      <span style={styles.deliveryTimeBadge}>{order.delivery_time || 'ASAP'}</span>
+                      <span style={styles.orderTime}>{formatTime(order.created_at)}</span>
+                    </div>
                   </div>
                   <div style={styles.orderDetails}>
                     <div style={styles.orderRoute}>
@@ -724,6 +780,10 @@ const styles = {
   section: { marginBottom: '40px' },
   sectionTitle: { fontSize: '22px', fontWeight: '700', color: '#1e293b', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' },
   orderCount: { fontSize: '14px', fontWeight: '500', color: '#64748b', backgroundColor: '#e2e8f0', padding: '4px 12px', borderRadius: '20px' },
+  sortBar: { display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' },
+  sortGroup: { display: 'flex', alignItems: 'center', gap: '8px' },
+  sortLabel: { fontSize: '14px', fontWeight: '500', color: '#64748b' },
+  sortSelect: { padding: '8px 12px', fontSize: '14px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: 'white', cursor: 'pointer' },
   orderFormCard: { background: 'white', borderRadius: '16px', padding: '28px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' },
   orderForm: { display: 'flex', flexDirection: 'column', gap: '20px' },
   formRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' },
@@ -739,7 +799,9 @@ const styles = {
   emptyIcon: { fontSize: '48px', display: 'block', marginBottom: '16px' },
   ordersGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' },
   orderCard: { background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' },
-  orderHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },
+  orderHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' },
+  orderMeta: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' },
+  deliveryTimeBadge: { padding: '4px 10px', backgroundColor: '#dbeafe', color: '#1d4ed8', borderRadius: '12px', fontSize: '12px', fontWeight: '600' },
   orderAmount: { fontSize: '28px', fontWeight: '700', color: '#059669' },
   orderTime: { fontSize: '13px', color: '#94a3b8', fontWeight: '500' },
   orderDetails: { marginBottom: '20px' },
