@@ -3,16 +3,64 @@ import React, { useState, useEffect, useRef } from 'react';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const SUPABASE_URL = 'https://lpvhvotwyovwnahdqqod.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwdmh2b3R3eW92d25haGRxcW9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNjg4OTUsImV4cCI6MjA4NDg0NDg5NX0.T2hd8Grico2Q3o0FW62e9SxUCMMTYFurhFP5gR-6zHc';
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_YOUR_KEY_HERE';
 
+// ============================================
+// AUTH SERVICE
+// ============================================
 const authService = {
   sendCode: async (email) => { const r = await fetch(`${API_URL}/api/auth/send-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }); return r.json(); },
   verifyCode: async (email, code) => { const r = await fetch(`${API_URL}/api/auth/verify-code`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, code }) }); return r.json(); },
   verifySession: async (token) => { const r = await fetch(`${API_URL}/api/auth/verify-session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } }); return r.json(); },
   saveSession: (token, user) => localStorage.setItem('penndash_session', JSON.stringify({ token, user, savedAt: Date.now() })),
   getSession: () => { const s = localStorage.getItem('penndash_session'); return s ? JSON.parse(s) : null; },
-  clearSession: () => localStorage.removeItem('penndash_session')
+  clearSession: () => localStorage.removeItem('penndash_session'),
+  getToken: () => { const s = localStorage.getItem('penndash_session'); return s ? JSON.parse(s).token : null; }
 };
 
+// ============================================
+// STRIPE SERVICE
+// ============================================
+const stripeService = {
+  getAccountStatus: async () => {
+    const r = await fetch(`${API_URL}/api/stripe/account-status`, {
+      headers: { 'Authorization': `Bearer ${authService.getToken()}` }
+    });
+    return r.json();
+  },
+  createConnectAccount: async () => {
+    const r = await fetch(`${API_URL}/api/stripe/create-connect-account`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authService.getToken()}` }
+    });
+    return r.json();
+  },
+  getDashboardLink: async () => {
+    const r = await fetch(`${API_URL}/api/stripe/dashboard-link`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authService.getToken()}` }
+    });
+    return r.json();
+  },
+  createPayment: async (orderId, amount, delivererEmail) => {
+    const r = await fetch(`${API_URL}/api/stripe/create-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authService.getToken()}` },
+      body: JSON.stringify({ orderId, amount, delivererEmail })
+    });
+    return r.json();
+  },
+  getPaymentStatus: async (paymentIntentId) => {
+    const r = await fetch(`${API_URL}/api/stripe/payment-status/${paymentIntentId}`, {
+      headers: { 'Authorization': `Bearer ${authService.getToken()}` }
+    });
+    return r.json();
+  }
+};
+
+// ============================================
+// SUPABASE CLIENT
+// ============================================
 const supabase = {
   from: (table) => ({
     select: async (columns = '*') => { const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${columns}`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }); const t = await r.text(); return { data: t ? JSON.parse(t) : [], error: r.ok ? null : t }; },
@@ -24,6 +72,9 @@ const supabase = {
   })
 };
 
+// ============================================
+// CONSTANTS
+// ============================================
 const DINING_HALLS = ['Houston Market', 'Accenture Café', 'Pret A Manger', "Joe's Café", 'McClelland Express'];
 const DORMS = ['Hill College House', 'Kings Court English House', 'Fisher Hassenfeld College House', 'Ware College House', 'Riepe College House', 'Harnwell College House', 'Harrison College House', 'Rodin College House', 'Lauder College House', 'Gregory College House', 'Stouffer College House', 'Du Bois College House', 'Sansom Place East', 'Sansom Place West', 'The Radian', 'Chestnut Hall'];
 const DELIVERY_TIMES = [
@@ -35,6 +86,226 @@ const DELIVERY_TIMES = [
   { value: '2hr', label: '2 hours', minutes: 120 }
 ];
 
+// ============================================
+// PAYMENT MODAL COMPONENT
+// ============================================
+function PaymentModal({ order, onClose, onPaymentSuccess }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [paymentData, setPaymentData] = useState(null);
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvc, setCvc] = useState('');
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+  const platformFee = (order.amount * 0.05).toFixed(2);
+  const stripeFee = (order.amount * 0.029 + 0.30).toFixed(2);
+  const delivererReceives = (order.amount - parseFloat(platformFee)).toFixed(2);
+
+  const handlePayment = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      // Create payment intent
+      const result = await stripeService.createPayment(order.id, order.amount, order.claimed_by);
+      
+      if (result.error) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+
+      setPaymentData(result);
+      
+      // In production, you'd use Stripe Elements here
+      // For now, simulate successful payment
+      setTimeout(async () => {
+        // Update order as paid
+        await supabase.from('orders').update({ payment_status: 'paid' }).eq('id', order.id);
+        setPaymentSuccess(true);
+        setLoading(false);
+        setTimeout(() => {
+          onPaymentSuccess();
+          onClose();
+        }, 2000);
+      }, 1500);
+
+    } catch (err) {
+      setError('Payment failed. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  if (paymentSuccess) {
+    return (
+      <div style={modalStyles.overlay} onClick={onClose}>
+        <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
+          <div style={modalStyles.successContent}>
+            <span style={{ fontSize: '64px' }}>✅</span>
+            <h2 style={{ color: '#059669', margin: '16px 0' }}>Payment Successful!</h2>
+            <p style={{ color: '#64748b' }}>Your deliverer has been notified.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
+        <div style={modalStyles.header}>
+          <h2 style={modalStyles.title}>💳 Pay for Delivery</h2>
+          <button onClick={onClose} style={modalStyles.closeBtn}>✕</button>
+        </div>
+
+        <div style={modalStyles.orderSummary}>
+          <div style={modalStyles.summaryRow}>
+            <span>Order from {order.dining_hall}</span>
+            <span style={{ fontWeight: '600' }}>${order.amount?.toFixed(2)}</span>
+          </div>
+          <div style={modalStyles.summaryRow}>
+            <span>Deliver to {order.dorm}</span>
+          </div>
+          <div style={modalStyles.divider}></div>
+          <div style={modalStyles.summaryRow}>
+            <span style={{ color: '#64748b', fontSize: '14px' }}>Platform fee (5%)</span>
+            <span style={{ color: '#64748b', fontSize: '14px' }}>-${platformFee}</span>
+          </div>
+          <div style={modalStyles.summaryRow}>
+            <span style={{ color: '#64748b', fontSize: '14px' }}>Deliverer receives</span>
+            <span style={{ color: '#059669', fontSize: '14px', fontWeight: '600' }}>${delivererReceives}</span>
+          </div>
+        </div>
+
+        <div style={modalStyles.cardForm}>
+          <div style={modalStyles.formField}>
+            <label style={modalStyles.label}>Card Number</label>
+            <input
+              type="text"
+              placeholder="4242 4242 4242 4242"
+              value={cardNumber}
+              onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim())}
+              maxLength={19}
+              style={modalStyles.input}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ ...modalStyles.formField, flex: 1 }}>
+              <label style={modalStyles.label}>Expiry</label>
+              <input
+                type="text"
+                placeholder="MM/YY"
+                value={expiry}
+                onChange={(e) => {
+                  let v = e.target.value.replace(/\D/g, '');
+                  if (v.length >= 2) v = v.slice(0, 2) + '/' + v.slice(2, 4);
+                  setExpiry(v);
+                }}
+                maxLength={5}
+                style={modalStyles.input}
+              />
+            </div>
+            <div style={{ ...modalStyles.formField, flex: 1 }}>
+              <label style={modalStyles.label}>CVC</label>
+              <input
+                type="text"
+                placeholder="123"
+                value={cvc}
+                onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                maxLength={3}
+                style={modalStyles.input}
+              />
+            </div>
+          </div>
+        </div>
+
+        {error && <p style={modalStyles.error}>{error}</p>}
+
+        <button
+          onClick={handlePayment}
+          disabled={loading || !cardNumber || !expiry || !cvc}
+          style={{
+            ...modalStyles.payButton,
+            opacity: loading || !cardNumber || !expiry || !cvc ? 0.6 : 1
+          }}
+        >
+          {loading ? 'Processing...' : `Pay $${order.amount?.toFixed(2)}`}
+        </button>
+
+        <p style={modalStyles.secureNote}>🔒 Secured by Stripe</p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// STRIPE SETUP MODAL
+// ============================================
+function StripeSetupModal({ onClose, onSetupComplete }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSetup = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const result = await stripeService.createConnectAccount();
+      if (result.error) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+      // Redirect to Stripe onboarding
+      window.location.href = result.url;
+    } catch (err) {
+      setError('Failed to start setup. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
+        <div style={modalStyles.header}>
+          <h2 style={modalStyles.title}>💰 Set Up Payments</h2>
+          <button onClick={onClose} style={modalStyles.closeBtn}>✕</button>
+        </div>
+
+        <div style={modalStyles.setupContent}>
+          <span style={{ fontSize: '48px', display: 'block', textAlign: 'center', marginBottom: '16px' }}>🏦</span>
+          <p style={{ textAlign: 'center', color: '#475569', marginBottom: '24px' }}>
+            To receive payments for deliveries, you need to connect your bank account through Stripe.
+          </p>
+
+          <div style={modalStyles.benefitsList}>
+            <div style={modalStyles.benefitItem}>✅ Get paid directly to your bank</div>
+            <div style={modalStyles.benefitItem}>✅ Secure & instant transfers</div>
+            <div style={modalStyles.benefitItem}>✅ Track your earnings</div>
+            <div style={modalStyles.benefitItem}>✅ Only takes 2 minutes</div>
+          </div>
+
+          {error && <p style={modalStyles.error}>{error}</p>}
+
+          <button
+            onClick={handleSetup}
+            disabled={loading}
+            style={{ ...modalStyles.payButton, opacity: loading ? 0.6 : 1 }}
+          >
+            {loading ? 'Loading...' : 'Set Up with Stripe →'}
+          </button>
+
+          <p style={modalStyles.secureNote}>🔒 You'll be redirected to Stripe's secure setup</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// CHAT POPUP COMPONENT
+// ============================================
 function ChatPopup({ chat, currentUser, onClose, onSendMessage, messages, onMinimize, isMinimized }) {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef(null);
@@ -117,6 +388,9 @@ function ChatPopup({ chat, currentUser, onClose, onSendMessage, messages, onMini
   );
 }
 
+// ============================================
+// VERIFICATION CODE INPUT
+// ============================================
 function VerificationCodeInput({ length = 6, value, onChange, disabled }) {
   const inputRefs = useRef([]);
   const digits = value.split('').concat(Array(length - value.length).fill(''));
@@ -153,6 +427,9 @@ function VerificationCodeInput({ length = 6, value, onChange, disabled }) {
   );
 }
 
+// ============================================
+// MAIN APP COMPONENT
+// ============================================
 export default function PennDash() {
   const [currentView, setCurrentView] = useState('login');
   const [email, setEmail] = useState('');
@@ -165,22 +442,39 @@ export default function PennDash() {
   const [devCode, setDevCode] = useState('');
   const [orders, setOrders] = useState([]);
   const [newOrder, setNewOrder] = useState({ amount: '', diningHall: '', dorm: '', details: '', deliveryTime: 'ASAP' });
-  const [sortBy, setSortBy] = useState('amount'); // 'amount', 'time', 'created_at'
+  const [sortBy, setSortBy] = useState('amount');
   const [sortDir, setSortDir] = useState('desc');
   const [showSuccess, setShowSuccess] = useState(false);
   const [chats, setChats] = useState([]);
   const [openChats, setOpenChats] = useState([]);
   const [minimizedChats, setMinimizedChats] = useState([]);
   const [chatMessages, setChatMessages] = useState({});
+  
+  // Stripe state
+  const [stripeStatus, setStripeStatus] = useState({ connected: false, canReceivePayments: false });
+  const [showStripeSetup, setShowStripeSetup] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
 
   useEffect(() => { checkExistingSession(); }, []);
+
+  useEffect(() => {
+    // Check for Stripe redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('stripe_success')) {
+      window.history.replaceState({}, '', window.location.pathname);
+      loadStripeStatus();
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
       loadOrders();
       loadChats();
+      loadStripeStatus();
       const interval = setInterval(() => {
         loadChats();
+        loadOrders();
         openChats.forEach(id => loadMessages(id));
       }, 3000);
       return () => clearInterval(interval);
@@ -193,6 +487,15 @@ export default function PennDash() {
       return () => clearTimeout(t);
     }
   }, [countdown]);
+
+  const loadStripeStatus = async () => {
+    try {
+      const status = await stripeService.getAccountStatus();
+      setStripeStatus(status);
+    } catch (err) {
+      console.error('Failed to load Stripe status:', err);
+    }
+  };
 
   const checkExistingSession = async () => {
     const s = authService.getSession();
@@ -290,6 +593,7 @@ export default function PennDash() {
     setCurrentView('login');
     setChats([]);
     setOpenChats([]);
+    setStripeStatus({ connected: false, canReceivePayments: false });
   };
 
   const loadOrders = async () => {
@@ -318,6 +622,7 @@ export default function PennDash() {
       details: newOrder.details,
       delivery_time: newOrder.deliveryTime,
       status: 'open',
+      payment_status: 'pending',
       created_at: new Date().toISOString()
     }]);
     setLoading(false);
@@ -337,6 +642,12 @@ export default function PennDash() {
   };
 
   const handleClaimOrder = async (order) => {
+    // Check if user has Stripe set up
+    if (!stripeStatus.canReceivePayments) {
+      setShowStripeSetup(true);
+      return;
+    }
+
     const { error } = await supabase.from('orders').update({ status: 'claimed', claimed_by: user.email }).eq('id', order.id);
     if (error) return;
     
@@ -356,6 +667,18 @@ export default function PennDash() {
       loadChats();
     }
     loadOrders();
+  };
+
+  const handlePayOrder = (order) => {
+    setSelectedOrderForPayment(order);
+    setShowPaymentModal(true);
+  };
+
+  const handleOpenStripeDashboard = async () => {
+    const result = await stripeService.getDashboardLink();
+    if (result.url) {
+      window.open(result.url, '_blank');
+    }
   };
 
   const loadChats = async () => {
@@ -416,6 +739,22 @@ export default function PennDash() {
     return new Date(d).toLocaleDateString();
   };
 
+  const getTimeMinutes = (timeValue) => {
+    const found = DELIVERY_TIMES.find(t => t.value === timeValue);
+    return found ? found.minutes : 0;
+  };
+
+  const getDeliveryByTime = (createdAt, deliveryTime) => {
+    const orderDate = new Date(createdAt);
+    const minutes = getTimeMinutes(deliveryTime);
+    if (minutes === 0) return 'ASAP';
+    const deliveryDate = new Date(orderDate.getTime() + minutes * 60000);
+    return deliveryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // ============================================
+  // RENDER: LOADING
+  // ============================================
   if (initialLoading) {
     return (
       <div style={styles.container}>
@@ -427,6 +766,9 @@ export default function PennDash() {
     );
   }
 
+  // ============================================
+  // RENDER: LOGIN
+  // ============================================
   if (currentView === 'login') {
     return (
       <div style={styles.container}>
@@ -464,6 +806,9 @@ export default function PennDash() {
     );
   }
 
+  // ============================================
+  // RENDER: VERIFY
+  // ============================================
   if (currentView === 'verify') {
     return (
       <div style={styles.container}>
@@ -501,33 +846,23 @@ export default function PennDash() {
     );
   }
 
-  const getTimeMinutes = (timeValue) => {
-    const found = DELIVERY_TIMES.find(t => t.value === timeValue);
-    return found ? found.minutes : 0;
-  };
-
-  const getDeliveryByTime = (createdAt, deliveryTime) => {
-    const orderDate = new Date(createdAt);
-    const minutes = getTimeMinutes(deliveryTime);
-    if (minutes === 0) return 'ASAP';
-    const deliveryDate = new Date(orderDate.getTime() + minutes * 60000);
-    return deliveryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
+  // ============================================
+  // RENDER: DASHBOARD
+  // ============================================
   const openOrders = orders.filter(o => o.status === 'open').sort((a, b) => {
     let comparison = 0;
-    if (sortBy === 'amount') {
-      comparison = (b.amount || 0) - (a.amount || 0);
-    } else if (sortBy === 'time') {
-      comparison = getTimeMinutes(a.delivery_time) - getTimeMinutes(b.delivery_time);
-    } else if (sortBy === 'created_at') {
-      comparison = new Date(b.created_at) - new Date(a.created_at);
-    }
+    if (sortBy === 'amount') comparison = (b.amount || 0) - (a.amount || 0);
+    else if (sortBy === 'time') comparison = getTimeMinutes(a.delivery_time) - getTimeMinutes(b.delivery_time);
+    else if (sortBy === 'created_at') comparison = new Date(b.created_at) - new Date(a.created_at);
     return sortDir === 'desc' ? comparison : -comparison;
   });
 
+  const myOrders = orders.filter(o => o.user_email === user.email);
+  const claimedOrders = orders.filter(o => o.claimed_by === user.email);
+
   return (
     <div style={styles.dashboardContainer}>
+      {/* Header */}
       <header style={styles.header}>
         <div style={styles.headerContent}>
           <div style={styles.headerLogo}>
@@ -535,6 +870,15 @@ export default function PennDash() {
             <span style={styles.logoTextSmall}>PennDash</span>
           </div>
           <div style={styles.userInfo}>
+            {stripeStatus.canReceivePayments ? (
+              <button onClick={handleOpenStripeDashboard} style={styles.stripeBadge}>
+                💰 Earnings
+              </button>
+            ) : (
+              <button onClick={() => setShowStripeSetup(true)} style={styles.setupPaymentsBadge}>
+                Set Up Payments
+              </button>
+            )}
             <span style={styles.verifiedBadge}>✓ Verified</span>
             <span style={styles.userEmail}>{user.email}</span>
             {chats.length > 0 && <span style={styles.chatIndicator}>💬 {chats.length}</span>}
@@ -544,6 +888,7 @@ export default function PennDash() {
       </header>
 
       <main style={styles.main}>
+        {/* Request Delivery Form */}
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>Request a Delivery</h2>
           <div style={styles.orderFormCard}>
@@ -611,6 +956,7 @@ export default function PennDash() {
           </div>
         </section>
 
+        {/* Available Deliveries */}
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>
             Available Deliveries
@@ -661,7 +1007,9 @@ export default function PennDash() {
                     {order.user_email === user.email ? (
                       <button onClick={() => handleCancelOrder(order.id)} style={styles.cancelButton}>Cancel</button>
                     ) : (
-                      <button onClick={() => handleClaimOrder(order)} style={styles.claimButton}>Claim & Chat</button>
+                      <button onClick={() => handleClaimOrder(order)} style={styles.claimButton}>
+                        {stripeStatus.canReceivePayments ? 'Claim & Deliver' : '⚡ Set Up to Claim'}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -670,6 +1018,29 @@ export default function PennDash() {
           )}
         </section>
 
+        {/* My Orders - Need Payment */}
+        {myOrders.filter(o => o.status === 'claimed' && o.payment_status !== 'paid').length > 0 && (
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>💳 Orders Awaiting Payment</h2>
+            <div style={styles.activityList}>
+              {myOrders.filter(o => o.status === 'claimed' && o.payment_status !== 'paid').map(order => (
+                <div key={order.id} style={styles.activityItem}>
+                  <div style={styles.activityInfo}>
+                    <div>
+                      <strong>${order.amount?.toFixed(2)}</strong> • {order.dining_hall}<br/>
+                      <span style={{color:'#64748b', fontSize: '14px'}}>Claimed by {order.claimed_by?.split('@')[0]}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => handlePayOrder(order)} style={styles.payNowButton}>
+                    💳 Pay Now
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Active Chats */}
         {chats.length > 0 && (
           <section style={styles.section}>
             <h2 style={styles.sectionTitle}>💬 Active Chats</h2>
@@ -694,6 +1065,7 @@ export default function PennDash() {
         )}
       </main>
 
+      {/* Chat Popups */}
       <div style={chatStyles.chatContainer}>
         {openChats.map((chatId, i) => {
           const chat = chats.find(c => c.id === chatId);
@@ -713,10 +1085,62 @@ export default function PennDash() {
           );
         })}
       </div>
+
+      {/* Modals */}
+      {showStripeSetup && (
+        <StripeSetupModal
+          onClose={() => setShowStripeSetup(false)}
+          onSetupComplete={() => {
+            setShowStripeSetup(false);
+            loadStripeStatus();
+          }}
+        />
+      )}
+
+      {showPaymentModal && selectedOrderForPayment && (
+        <PaymentModal
+          order={selectedOrderForPayment}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedOrderForPayment(null);
+          }}
+          onPaymentSuccess={() => {
+            loadOrders();
+          }}
+        />
+      )}
     </div>
   );
 }
 
+// ============================================
+// MODAL STYLES
+// ============================================
+const modalStyles = {
+  overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 },
+  modal: { backgroundColor: 'white', borderRadius: '20px', width: '90%', maxWidth: '420px', maxHeight: '90vh', overflow: 'auto' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' },
+  title: { margin: 0, fontSize: '20px', fontWeight: '700', color: '#1e293b' },
+  closeBtn: { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b', padding: '4px' },
+  orderSummary: { padding: '20px 24px', backgroundColor: '#f8fafc' },
+  summaryRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' },
+  divider: { height: '1px', backgroundColor: '#e2e8f0', margin: '12px 0' },
+  cardForm: { padding: '20px 24px' },
+  formField: { marginBottom: '16px' },
+  label: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  input: { width: '100%', padding: '14px 16px', fontSize: '16px', border: '2px solid #e2e8f0', borderRadius: '10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' },
+  error: { color: '#dc2626', fontSize: '14px', margin: '0 24px 16px', padding: '12px 16px', backgroundColor: '#fef2f2', borderRadius: '8px' },
+  payButton: { width: 'calc(100% - 48px)', margin: '0 24px 16px', padding: '16px 24px', fontSize: '16px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #059669, #10b981)', border: 'none', borderRadius: '12px', cursor: 'pointer' },
+  secureNote: { textAlign: 'center', color: '#64748b', fontSize: '13px', padding: '0 24px 24px' },
+  successContent: { padding: '48px 24px', textAlign: 'center' },
+  setupContent: { padding: '24px' },
+  benefitsList: { marginBottom: '24px' },
+  benefitItem: { padding: '12px 16px', backgroundColor: '#f0fdf4', borderRadius: '8px', marginBottom: '8px', color: '#166534', fontSize: '14px' }
+};
+
+// ============================================
+// CHAT STYLES
+// ============================================
 const chatStyles = {
   chatContainer: { position: 'fixed', bottom: 0, right: 0, zIndex: 1000, pointerEvents: 'none' },
   chatWrapper: { position: 'fixed', bottom: 0, pointerEvents: 'auto' },
@@ -750,6 +1174,9 @@ const chatStyles = {
   chatListAvatar: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#011F5B', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '600', marginRight: '12px' }
 };
 
+// ============================================
+// MAIN STYLES
+// ============================================
 const styles = {
   container: { minHeight: '100vh', background: 'linear-gradient(135deg, #011F5B 0%, #1a3a7a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' },
   loadingCard: { background: 'white', padding: '48px', borderRadius: '20px', textAlign: 'center' },
@@ -776,11 +1203,13 @@ const styles = {
   linkButton: { background: 'none', border: 'none', color: '#011F5B', fontSize: '14px', fontWeight: '500', cursor: 'pointer', textDecoration: 'underline' },
   dashboardContainer: { minHeight: '100vh', backgroundColor: '#f8fafc' },
   header: { background: 'linear-gradient(135deg, #011F5B, #1a3a7a)', padding: '16px 24px', position: 'sticky', top: 0, zIndex: 100 },
-  headerContent: { maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  headerContent: { maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' },
   headerLogo: { display: 'flex', alignItems: 'center', gap: '10px', color: 'white', fontSize: '24px' },
   logoTextSmall: { fontSize: '22px', fontWeight: '700', color: 'white' },
-  userInfo: { display: 'flex', alignItems: 'center', gap: '16px' },
+  userInfo: { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' },
   verifiedBadge: { padding: '4px 12px', backgroundColor: 'rgba(16,185,129,0.2)', color: '#10b981', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
+  stripeBadge: { padding: '6px 14px', backgroundColor: '#059669', color: 'white', borderRadius: '20px', fontSize: '12px', fontWeight: '600', border: 'none', cursor: 'pointer' },
+  setupPaymentsBadge: { padding: '6px 14px', backgroundColor: '#f59e0b', color: 'white', borderRadius: '20px', fontSize: '12px', fontWeight: '600', border: 'none', cursor: 'pointer' },
   chatIndicator: { padding: '4px 12px', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
   userEmail: { color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '500' },
   logoutButton: { padding: '8px 16px', fontSize: '14px', fontWeight: '500', color: '#011F5B', backgroundColor: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' },
@@ -821,11 +1250,13 @@ const styles = {
   orderActions: { display: 'flex', gap: '12px' },
   claimButton: { flex: 1, padding: '12px 20px', fontSize: '15px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #011F5B, #1a3a7a)', border: 'none', borderRadius: '10px', cursor: 'pointer' },
   cancelButton: { flex: 1, padding: '12px 20px', fontSize: '15px', fontWeight: '500', color: '#dc2626', backgroundColor: '#fef2f2', border: '2px solid #fecaca', borderRadius: '10px', cursor: 'pointer' },
+  payNowButton: { padding: '10px 20px', fontSize: '14px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #059669, #10b981)', border: 'none', borderRadius: '8px', cursor: 'pointer' },
   activityList: { display: 'flex', flexDirection: 'column', gap: '12px' },
   activityItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0' },
   activityInfo: { display: 'flex', alignItems: 'center' }
 };
 
+// Add keyframes
 if (typeof document !== 'undefined') {
   const style = document.createElement('style');
   style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
