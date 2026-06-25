@@ -18,12 +18,12 @@ const PORT = process.env.PORT || 3001;
 // ============================================
 const CONFIG = {
   JWT_SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
-  
+
   // Stripe Configuration
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || 'sk_test_YOUR_KEY_HERE',
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || 'whsec_YOUR_WEBHOOK_SECRET',
   PLATFORM_FEE_PERCENT: 5, // Your 5% cut
-  
+
   // Email configuration
   EMAIL: {
     HOST: process.env.EMAIL_HOST || 'smtp.gmail.com',
@@ -33,12 +33,60 @@ const CONFIG = {
     PASS: process.env.EMAIL_PASS || '',
     FROM: process.env.EMAIL_FROM || 'PennDash <noreply@penndash.com>'
   },
-  
+
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
   BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:3001',
-  
+
+  SUPABASE_URL: process.env.SUPABASE_URL || '',
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+
   VERIFICATION_EXPIRY_MINUTES: 15,
   MAX_EMAILS_PER_HOUR: 5
+};
+
+// ============================================
+// SUPABASE CLIENT (uses native fetch, Node 18+)
+// Falls back gracefully when env vars not set.
+// ============================================
+const dbAvailable = () => !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_SERVICE_ROLE_KEY);
+
+const db = {
+  from: (table) => {
+    const headers = {
+      'apikey': CONFIG.SUPABASE_SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${CONFIG.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    };
+    const base = `${CONFIG.SUPABASE_URL}/rest/v1/${table}`;
+
+    return {
+      select: async (columns = '*', filters = {}) => {
+        if (!dbAvailable()) return [];
+        let url = `${base}?select=${columns}`;
+        Object.entries(filters).forEach(([k, v]) => { url += `&${k}=eq.${encodeURIComponent(v)}`; });
+        try {
+          const r = await fetch(url, { headers });
+          return r.ok ? r.json() : [];
+        } catch { return []; }
+      },
+      upsert: async (data, onConflict) => {
+        if (!dbAvailable()) return null;
+        const url = `${base}?on_conflict=${onConflict}`;
+        try {
+          const r = await fetch(url, { method: 'POST', headers: { ...headers, 'Prefer': 'return=representation,resolution=merge-duplicates' }, body: JSON.stringify(data) });
+          return r.ok ? r.json() : null;
+        } catch { return null; }
+      },
+      update: async (data, col, val) => {
+        if (!dbAvailable()) return null;
+        try {
+          const r = await fetch(`${base}?${col}=eq.${encodeURIComponent(val)}`, { method: 'PATCH', headers, body: JSON.stringify(data) });
+          return r.ok ? r.json() : null;
+        } catch { return null; }
+      }
+    };
+  }
 };
 
 // Initialize Stripe
@@ -57,13 +105,37 @@ app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 
 // ============================================
-// IN-MEMORY STORAGE (Use Database in production)
+// IN-MEMORY STORAGE
+// verificationCodes and rateLimits are intentionally ephemeral (short-lived).
+// userStripeAccounts is a write-through cache; Supabase is the source of truth
+// when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set.
 // ============================================
 const verificationCodes = new Map();
 const verifiedUsers = new Map();
 const rateLimits = new Map();
-const userStripeAccounts = new Map(); // email -> stripe_account_id
-const pendingPayments = new Map(); // payment_intent_id -> order details
+const userStripeAccounts = new Map(); // email -> stripe_account_id (cache)
+const pendingPayments = new Map();    // payment_intent_id -> order details
+
+// ============================================
+// STRIPE ACCOUNT HELPERS (Supabase-backed)
+// ============================================
+async function getStripeAccountId(email) {
+  const cached = userStripeAccounts.get(email.toLowerCase());
+  if (cached) return cached;
+
+  const rows = await db.from('users').select('stripe_account_id', { email: email.toLowerCase() });
+  const accountId = rows?.[0]?.stripe_account_id || null;
+  if (accountId) userStripeAccounts.set(email.toLowerCase(), accountId);
+  return accountId;
+}
+
+async function setStripeAccountId(email, accountId) {
+  userStripeAccounts.set(email.toLowerCase(), accountId);
+  await db.from('users').upsert(
+    { email: email.toLowerCase(), stripe_account_id: accountId, updated_at: new Date().toISOString() },
+    'email'
+  );
+}
 
 // ============================================
 // HELPER FUNCTIONS
@@ -227,7 +299,7 @@ app.post('/api/auth/verify-code', async (req, res) => {
   }
 });
 
-app.post('/api/auth/verify-session', (req, res) => {
+app.post('/api/auth/verify-session', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token' });
@@ -237,7 +309,7 @@ app.post('/api/auth/verify-session', (req, res) => {
   if (!decoded) return res.status(401).json({ error: 'Invalid token' });
   
   // Include stripe account status
-  const stripeAccountId = userStripeAccounts.get(decoded.email);
+  const stripeAccountId = await getStripeAccountId(decoded.email);
   
   res.json({ 
     valid: true, 
@@ -256,7 +328,7 @@ app.post('/api/auth/verify-session', (req, res) => {
 // Check if user has connected Stripe account
 app.get('/api/stripe/account-status', requireAuth, async (req, res) => {
   try {
-    const stripeAccountId = userStripeAccounts.get(req.userEmail);
+    const stripeAccountId = await getStripeAccountId(req.userEmail);
     
     if (!stripeAccountId) {
       return res.json({ connected: false, canReceivePayments: false });
@@ -279,8 +351,8 @@ app.get('/api/stripe/account-status', requireAuth, async (req, res) => {
 // Create Stripe Connect onboarding link (for deliverers to receive payments)
 app.post('/api/stripe/create-connect-account', requireAuth, async (req, res) => {
   try {
-    let accountId = userStripeAccounts.get(req.userEmail);
-    
+    let accountId = await getStripeAccountId(req.userEmail);
+
     if (!accountId) {
       // Create new Connect Express account
       const account = await stripe.accounts.create({
@@ -294,9 +366,9 @@ app.post('/api/stripe/create-connect-account', requireAuth, async (req, res) => 
         business_type: 'individual',
         metadata: { penndash_email: req.userEmail }
       });
-      
+
       accountId = account.id;
-      userStripeAccounts.set(req.userEmail, accountId);
+      await setStripeAccountId(req.userEmail, accountId);
       console.log(`[STRIPE] Created account ${accountId} for ${req.userEmail}`);
     }
     
@@ -318,7 +390,7 @@ app.post('/api/stripe/create-connect-account', requireAuth, async (req, res) => 
 // Create Stripe dashboard link (for deliverers to view earnings)
 app.post('/api/stripe/dashboard-link', requireAuth, async (req, res) => {
   try {
-    const stripeAccountId = userStripeAccounts.get(req.userEmail);
+    const stripeAccountId = await getStripeAccountId(req.userEmail);
     
     if (!stripeAccountId) {
       return res.status(400).json({ error: 'No Stripe account found. Set up payments first.' });
@@ -342,7 +414,7 @@ app.post('/api/stripe/create-payment', requireAuth, async (req, res) => {
     }
     
     // Get deliverer's Stripe account
-    const delivererStripeId = userStripeAccounts.get(delivererEmail.toLowerCase());
+    const delivererStripeId = await getStripeAccountId(delivererEmail);
     
     if (!delivererStripeId) {
       return res.status(400).json({ 
@@ -438,30 +510,91 @@ app.post('/api/stripe/webhook', async (req, res) => {
   }
   
   switch (event.type) {
-    case 'payment_intent.succeeded':
+    case 'payment_intent.succeeded': {
       const paymentIntent = event.data.object;
       console.log(`[STRIPE] ✅ Payment succeeded: ${paymentIntent.id}`);
-      const details = pendingPayments.get(paymentIntent.id);
-      if (details) {
-        console.log(`[STRIPE] Order ${details.orderId} paid! Deliverer: ${details.delivererEmail}, Amount: $${details.amount}`);
-        // TODO: Update order payment_status in Supabase to 'paid'
+
+      // Use metadata on the intent (always available, even if server restarted)
+      const orderId = paymentIntent.metadata?.order_id;
+      const delivererEmail = paymentIntent.metadata?.deliverer_email;
+      const requesterEmail = paymentIntent.metadata?.requester_email;
+
+      if (orderId) {
+        const updated = await db.from('orders').update({ payment_status: 'paid' }, 'id', orderId);
+        if (updated) {
+          console.log(`[STRIPE] ✅ Order ${orderId} marked paid in Supabase`);
+        } else {
+          console.warn(`[STRIPE] ⚠️  Could not update Supabase for order ${orderId} — check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars`);
+        }
+      }
+
+      // Also log from in-memory cache if available
+      const cached = pendingPayments.get(paymentIntent.id);
+      if (cached) {
+        console.log(`[STRIPE] Order ${cached.orderId} paid — deliverer: ${cached.delivererEmail}, amount: $${cached.amount}`);
+        pendingPayments.delete(paymentIntent.id);
       }
       break;
-      
-    case 'payment_intent.payment_failed':
-      console.log(`[STRIPE] ❌ Payment failed: ${event.data.object.id}`);
+    }
+
+    case 'payment_intent.payment_failed': {
+      const failedIntent = event.data.object;
+      console.log(`[STRIPE] ❌ Payment failed: ${failedIntent.id}`);
+      const orderId = failedIntent.metadata?.order_id;
+      if (orderId) {
+        await db.from('orders').update({ payment_status: 'failed' }, 'id', orderId);
+      }
       break;
-      
-    case 'account.updated':
+    }
+
+    case 'account.updated': {
       const account = event.data.object;
       console.log(`[STRIPE] Account ${account.id} updated. Charges enabled: ${account.charges_enabled}`);
       break;
-      
+    }
+
     default:
       console.log(`[STRIPE] Event: ${event.type}`);
   }
   
   res.json({ received: true });
+});
+
+// ============================================
+// ORDER LIFECYCLE ROUTES
+// ============================================
+
+// Mark an order as delivered. Either the deliverer or requester can confirm.
+app.post('/api/orders/:orderId/complete', requireAuth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    // Fetch the order to verify the caller is a participant
+    const rows = await db.from('orders').select('*', { id: orderId });
+    const order = rows?.[0];
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    if (req.userEmail !== order.claimed_by && req.userEmail !== order.user_email) {
+      return res.status(403).json({ error: 'Only the requester or deliverer can complete this order' });
+    }
+    if (order.payment_status !== 'paid') {
+      return res.status(400).json({ error: 'Order must be paid before it can be marked delivered' });
+    }
+
+    await db.from('orders').update(
+      { status: 'delivered', delivered_at: new Date().toISOString() },
+      'id',
+      orderId
+    );
+
+    console.log(`[ORDER] ✅ Order ${orderId} marked delivered by ${req.userEmail}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[ORDER] Complete error:', error);
+    res.status(500).json({ error: 'Failed to complete order' });
+  }
 });
 
 // ============================================

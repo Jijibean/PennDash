@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const SUPABASE_URL = 'https://lpvhvotwyovwnahdqqod.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwdmh2b3R3eW92d25haGRxcW9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNjg4OTUsImV4cCI6MjA4NDg0NDg5NX0.T2hd8Grico2Q3o0FW62e9SxUCMMTYFurhFP5gR-6zHc';
 const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_YOUR_KEY_HERE';
+
+// Initialized once at module level (not inside a component) per Stripe docs.
+const stripePromise = STRIPE_PUBLISHABLE_KEY !== 'pk_test_YOUR_KEY_HERE'
+  ? loadStripe(STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 // ============================================
 // AUTH SERVICE
@@ -87,69 +94,164 @@ const DELIVERY_TIMES = [
 ];
 
 // ============================================
-// PAYMENT MODAL COMPONENT
+// PAYMENT MODAL COMPONENT (real Stripe Elements)
 // ============================================
-function PaymentModal({ order, onClose, onPaymentSuccess }) {
+
+// Inner form — must live inside <Elements> so useStripe/useElements work.
+function StripePaymentForm({ order, clientSecret, breakdown, onClose, onPaymentSuccess }) {
+  const stripe = useStripe();
+  const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [paymentData, setPaymentData] = useState(null);
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvc, setCvc] = useState('');
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  const platformFee = (order.amount * 0.05).toFixed(2);
-  const stripeFee = (order.amount * 0.029 + 0.30).toFixed(2);
-  const delivererReceives = (order.amount - parseFloat(platformFee)).toFixed(2);
+  const platformFee = breakdown?.platformFee ?? (order.amount * 0.05);
+  const delivererReceives = breakdown?.delivererReceives ?? (order.amount - platformFee);
 
-  const handlePayment = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements || !clientSecret) {
+      setError('Payment not ready yet — please wait a moment.');
+      return;
+    }
     setLoading(true);
     setError('');
 
-    try {
-      // Create payment intent
-      const result = await stripeService.createPayment(order.id, order.amount, order.claimed_by);
-      
-      if (result.error) {
-        setError(result.error);
-        setLoading(false);
-        return;
-      }
+    const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+      payment_method: { card: elements.getElement(CardElement) }
+    });
 
-      setPaymentData(result);
-      
-      // In production, you'd use Stripe Elements here
-      // For now, simulate successful payment
-      setTimeout(async () => {
-        // Update order as paid
-        await supabase.from('orders').update({ payment_status: 'paid' }).eq('id', order.id);
-        setPaymentSuccess(true);
-        setLoading(false);
-        setTimeout(() => {
-          onPaymentSuccess();
-          onClose();
-        }, 2000);
-      }, 1500);
-
-    } catch (err) {
-      setError('Payment failed. Please try again.');
+    if (stripeError) {
+      setError(stripeError.message || 'Payment failed. Please try again.');
       setLoading(false);
+      return;
     }
+
+    if (paymentIntent?.status === 'succeeded') {
+      // Update locally — the webhook also does this server-side as a backup.
+      await supabase.from('orders').update({ payment_status: 'paid' }).eq('id', order.id);
+      setPaymentSuccess(true);
+      setTimeout(() => { onPaymentSuccess(); onClose(); }, 2000);
+    }
+    setLoading(false);
   };
 
   if (paymentSuccess) {
     return (
-      <div style={modalStyles.overlay} onClick={onClose}>
-        <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
-          <div style={modalStyles.successContent}>
-            <span style={{ fontSize: '64px' }}>✅</span>
-            <h2 style={{ color: '#059669', margin: '16px 0' }}>Payment Successful!</h2>
-            <p style={{ color: '#64748b' }}>Your deliverer has been notified.</p>
-          </div>
-        </div>
+      <div style={modalStyles.successContent}>
+        <span style={{ fontSize: '64px' }}>✅</span>
+        <h2 style={{ color: '#059669', margin: '16px 0' }}>Payment Successful!</h2>
+        <p style={{ color: '#64748b' }}>Your deliverer has been notified.</p>
       </div>
     );
   }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={modalStyles.orderSummary}>
+        <div style={modalStyles.summaryRow}>
+          <span>Order from {order.dining_hall}</span>
+          <span style={{ fontWeight: '600' }}>${order.amount?.toFixed(2)}</span>
+        </div>
+        <div style={modalStyles.summaryRow}>
+          <span>Deliver to {order.dorm}</span>
+        </div>
+        <div style={modalStyles.divider}></div>
+        <div style={modalStyles.summaryRow}>
+          <span style={{ color: '#64748b', fontSize: '14px' }}>Platform fee (5%)</span>
+          <span style={{ color: '#64748b', fontSize: '14px' }}>-${platformFee.toFixed(2)}</span>
+        </div>
+        <div style={modalStyles.summaryRow}>
+          <span style={{ color: '#64748b', fontSize: '14px' }}>Deliverer receives</span>
+          <span style={{ color: '#059669', fontSize: '14px', fontWeight: '600' }}>${delivererReceives.toFixed(2)}</span>
+        </div>
+      </div>
+
+      <div style={modalStyles.cardForm}>
+        <div style={modalStyles.formField}>
+          <label style={modalStyles.label}>Card Details</label>
+          <div style={modalStyles.stripeCardWrapper}>
+            <CardElement options={{
+              style: {
+                base: { fontSize: '16px', color: '#1e293b', fontFamily: 'inherit', '::placeholder': { color: '#94a3b8' } },
+                invalid: { color: '#dc2626' }
+              }
+            }} />
+          </div>
+        </div>
+      </div>
+
+      {error && <p style={modalStyles.error}>{error}</p>}
+
+      <button
+        type="submit"
+        disabled={loading || !stripe || !clientSecret}
+        style={{ ...modalStyles.payButton, opacity: (loading || !stripe || !clientSecret) ? 0.6 : 1 }}
+      >
+        {loading ? 'Processing...' : `Pay $${order.amount?.toFixed(2)}`}
+      </button>
+      <p style={modalStyles.secureNote}>🔒 Secured by Stripe</p>
+    </form>
+  );
+}
+
+function PaymentModal({ order, onClose, onPaymentSuccess }) {
+  const [clientSecret, setClientSecret] = useState(null);
+  const [breakdown, setBreakdown] = useState(null);
+  const [initError, setInitError] = useState('');
+  const [initLoading, setInitLoading] = useState(true);
+
+  useEffect(() => {
+    stripeService.createPayment(order.id, order.amount, order.claimed_by)
+      .then(result => {
+        if (result.error) {
+          setInitError(result.error);
+        } else {
+          setClientSecret(result.clientSecret);
+          setBreakdown(result.breakdown);
+        }
+        setInitLoading(false);
+      })
+      .catch(() => {
+        setInitError('Failed to initialize payment. Please try again.');
+        setInitLoading(false);
+      });
+  }, []);
+
+  const body = () => {
+    if (!stripePromise) {
+      return (
+        <div style={{ padding: '24px' }}>
+          <p style={modalStyles.error}>
+            Stripe is not configured. Add <code>VITE_STRIPE_PUBLISHABLE_KEY</code> to your <code>.env</code> file and restart the dev server.
+          </p>
+          <button onClick={onClose} style={{ ...modalStyles.payButton, background: '#64748b' }}>Close</button>
+        </div>
+      );
+    }
+    if (initLoading) {
+      return <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>Preparing payment...</div>;
+    }
+    if (initError) {
+      return (
+        <div style={{ padding: '24px' }}>
+          <p style={modalStyles.error}>{initError}</p>
+          <button onClick={onClose} style={{ ...modalStyles.payButton, background: '#64748b', width: 'calc(100% - 48px)', margin: '0 24px' }}>Close</button>
+        </div>
+      );
+    }
+    return (
+      <Elements stripe={stripePromise} options={{ clientSecret }}>
+        <StripePaymentForm
+          order={order}
+          clientSecret={clientSecret}
+          breakdown={breakdown}
+          onClose={onClose}
+          onPaymentSuccess={onPaymentSuccess}
+        />
+      </Elements>
+    );
+  };
 
   return (
     <div style={modalStyles.overlay} onClick={onClose}>
@@ -158,82 +260,7 @@ function PaymentModal({ order, onClose, onPaymentSuccess }) {
           <h2 style={modalStyles.title}>💳 Pay for Delivery</h2>
           <button onClick={onClose} style={modalStyles.closeBtn}>✕</button>
         </div>
-
-        <div style={modalStyles.orderSummary}>
-          <div style={modalStyles.summaryRow}>
-            <span>Order from {order.dining_hall}</span>
-            <span style={{ fontWeight: '600' }}>${order.amount?.toFixed(2)}</span>
-          </div>
-          <div style={modalStyles.summaryRow}>
-            <span>Deliver to {order.dorm}</span>
-          </div>
-          <div style={modalStyles.divider}></div>
-          <div style={modalStyles.summaryRow}>
-            <span style={{ color: '#64748b', fontSize: '14px' }}>Platform fee (5%)</span>
-            <span style={{ color: '#64748b', fontSize: '14px' }}>-${platformFee}</span>
-          </div>
-          <div style={modalStyles.summaryRow}>
-            <span style={{ color: '#64748b', fontSize: '14px' }}>Deliverer receives</span>
-            <span style={{ color: '#059669', fontSize: '14px', fontWeight: '600' }}>${delivererReceives}</span>
-          </div>
-        </div>
-
-        <div style={modalStyles.cardForm}>
-          <div style={modalStyles.formField}>
-            <label style={modalStyles.label}>Card Number</label>
-            <input
-              type="text"
-              placeholder="4242 4242 4242 4242"
-              value={cardNumber}
-              onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim())}
-              maxLength={19}
-              style={modalStyles.input}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div style={{ ...modalStyles.formField, flex: 1 }}>
-              <label style={modalStyles.label}>Expiry</label>
-              <input
-                type="text"
-                placeholder="MM/YY"
-                value={expiry}
-                onChange={(e) => {
-                  let v = e.target.value.replace(/\D/g, '');
-                  if (v.length >= 2) v = v.slice(0, 2) + '/' + v.slice(2, 4);
-                  setExpiry(v);
-                }}
-                maxLength={5}
-                style={modalStyles.input}
-              />
-            </div>
-            <div style={{ ...modalStyles.formField, flex: 1 }}>
-              <label style={modalStyles.label}>CVC</label>
-              <input
-                type="text"
-                placeholder="123"
-                value={cvc}
-                onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                maxLength={3}
-                style={modalStyles.input}
-              />
-            </div>
-          </div>
-        </div>
-
-        {error && <p style={modalStyles.error}>{error}</p>}
-
-        <button
-          onClick={handlePayment}
-          disabled={loading || !cardNumber || !expiry || !cvc}
-          style={{
-            ...modalStyles.payButton,
-            opacity: loading || !cardNumber || !expiry || !cvc ? 0.6 : 1
-          }}
-        >
-          {loading ? 'Processing...' : `Pay $${order.amount?.toFixed(2)}`}
-        </button>
-
-        <p style={modalStyles.secureNote}>🔒 Secured by Stripe</p>
+        {body()}
       </div>
     </div>
   );
@@ -428,10 +455,259 @@ function VerificationCodeInput({ length = 6, value, onChange, disabled }) {
 }
 
 // ============================================
+// LANDING PAGE STYLES
+// ============================================
+const ls = {
+  nav: { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, padding: '16px 24px', background: 'rgba(1,31,91,0.96)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.08)' },
+  navInner: { maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  navLogo: { fontSize: '20px', fontWeight: '800', color: 'white', letterSpacing: '-0.3px' },
+  navLoginBtn: { padding: '8px 20px', fontSize: '14px', fontWeight: '700', color: '#011F5B', backgroundColor: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' },
+
+  hero: { minHeight: '100vh', background: 'linear-gradient(150deg, #011F5B 0%, #0d2d6b 55%, #1a1a3e 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '100px 24px 80px', position: 'relative', overflow: 'hidden' },
+  heroInner: { display: 'flex', gap: '48px', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '1100px', width: '100%', zIndex: 1 },
+  heroContent: { flex: '1', minWidth: '300px', maxWidth: '520px' },
+  heroBadge: { display: 'inline-block', padding: '6px 16px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.85)', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginBottom: '28px', border: '1px solid rgba(255,255,255,0.15)' },
+  heroH1: { fontSize: 'clamp(36px, 5.5vw, 62px)', fontWeight: '800', color: 'white', lineHeight: 1.1, letterSpacing: '-1.5px', margin: '0 0 24px' },
+  heroAccent: { color: '#10b981' },
+  heroSub: { fontSize: '18px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.65, margin: '0 0 36px', maxWidth: '460px' },
+  heroCta: { display: 'inline-block', padding: '16px 32px', fontSize: '17px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg, #990000, #c41e3a)', border: 'none', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 8px 32px rgba(153,0,0,0.35)' },
+
+  bidBoard: { flex: '1', minWidth: '280px', maxWidth: '400px', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '20px', overflow: 'hidden' },
+  bidBoardHeader: { padding: '14px 20px', backgroundColor: 'rgba(0,0,0,0.25)', fontSize: '12px', fontWeight: '700', color: 'rgba(255,255,255,0.6)', letterSpacing: '1px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' },
+  bidDot: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block', animation: 'pd-pulse 1.5s ease-in-out infinite' },
+  bidRow: { display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', transition: 'background 0.2s' },
+  bidRowHot: { backgroundColor: 'rgba(16,185,129,0.07)' },
+  bidAmount: { fontSize: '24px', fontWeight: '800', minWidth: '50px' },
+  bidDetails: { flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' },
+  bidHall: { fontSize: '14px', fontWeight: '600', color: 'white' },
+  bidDorm: { fontSize: '12px', color: 'rgba(255,255,255,0.45)' },
+  hotBadge: { padding: '4px 10px', backgroundColor: 'rgba(16,185,129,0.2)', color: '#10b981', borderRadius: '12px', fontSize: '12px', fontWeight: '700' },
+  bidBoardFooter: { padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', fontStyle: 'italic' },
+
+  scrollIndicator: { position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', animation: 'pd-bounce 2s ease-in-out infinite' },
+  scrollText: { fontSize: '11px', letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: '600', color: 'rgba(255,255,255,0.35)' },
+  scrollArrow: { fontSize: '18px', color: 'rgba(255,255,255,0.35)' },
+
+  sectionLight: { padding: '100px 24px', backgroundColor: 'white' },
+  sectionDark: { padding: '100px 24px', backgroundColor: '#011F5B' },
+  sectionGray: { padding: '100px 24px', backgroundColor: '#f1f5f9' },
+  sectionInner: { maxWidth: '1100px', margin: '0 auto' },
+  sectionLabel: { display: 'inline-block', padding: '5px 14px', backgroundColor: '#dbeafe', color: '#1d4ed8', borderRadius: '20px', fontSize: '12px', fontWeight: '700', marginBottom: '20px', letterSpacing: '0.5px', textTransform: 'uppercase' },
+  sectionLabelLight: { display: 'inline-block', padding: '5px 14px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.75)', borderRadius: '20px', fontSize: '12px', fontWeight: '700', marginBottom: '20px', letterSpacing: '0.5px', textTransform: 'uppercase' },
+  sectionH2: { fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: '800', color: '#0f172a', lineHeight: 1.15, margin: '0 0 16px', letterSpacing: '-0.5px' },
+  sectionSub: { fontSize: '18px', color: '#64748b', lineHeight: 1.65, margin: '0 0 56px', maxWidth: '560px' },
+
+  stepsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', marginBottom: '36px' },
+  stepCard: { padding: '32px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' },
+  stepCardDark: { padding: '32px', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.09)' },
+  stepNum: { fontSize: '12px', fontWeight: '800', color: '#cbd5e1', letterSpacing: '2px', marginBottom: '16px' },
+  stepNumDark: { fontSize: '12px', fontWeight: '800', color: 'rgba(255,255,255,0.25)', letterSpacing: '2px', marginBottom: '16px' },
+  stepTitle: { fontSize: '19px', fontWeight: '700', color: '#0f172a', margin: '0 0 10px' },
+  stepDesc: { fontSize: '15px', color: '#64748b', lineHeight: 1.65, margin: 0 },
+
+  calloutBox: { display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '20px 24px', backgroundColor: '#fefce8', border: '1px solid #fde047', borderRadius: '12px', fontSize: '15px', color: '#713f12', lineHeight: 1.55 },
+  calloutIcon: { fontSize: '20px', flexShrink: 0, marginTop: '2px' },
+  earningCallout: { padding: '24px 28px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '12px' },
+  earningLabel: { fontSize: '11px', fontWeight: '800', color: '#10b981', textTransform: 'uppercase', letterSpacing: '1.5px', display: 'block', marginBottom: '8px' },
+  earningText: { fontSize: '18px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 },
+
+  featuresGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '48px' },
+  featureCard: { padding: '32px', backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' },
+  featureIcon: { fontSize: '32px', display: 'block', marginBottom: '18px' },
+  featureTitle: { fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 10px' },
+  featureDesc: { fontSize: '15px', color: '#64748b', lineHeight: 1.65, margin: 0 },
+
+  ctaSection: { padding: '120px 24px', background: 'linear-gradient(150deg, #011F5B 0%, #1a1a3e 100%)', textAlign: 'center' },
+  ctaContent: { maxWidth: '620px', margin: '0 auto' },
+  ctaH2: { fontSize: 'clamp(30px, 5vw, 52px)', fontWeight: '800', color: 'white', lineHeight: 1.15, letterSpacing: '-0.5px', margin: '0 0 20px' },
+  ctaSub: { fontSize: '18px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.65, margin: '0 0 40px' },
+  ctaButton: { padding: '18px 44px', fontSize: '18px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg, #990000, #c41e3a)', border: 'none', borderRadius: '14px', cursor: 'pointer', boxShadow: '0 8px 32px rgba(153,0,0,0.4)' },
+  ctaNote: { marginTop: '24px', fontSize: '13px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.2px' },
+};
+
+// ============================================
+// LANDING PAGE COMPONENT
+// ============================================
+function LandingPage({ onGetStarted }) {
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('pd-visible'); }),
+      { threshold: 0.12 }
+    );
+    document.querySelectorAll('.pd-animate').forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
+  const BIDS = [
+    { amount: 14, hall: 'Houston Market',    dorm: 'Hill College House',       hot: true  },
+    { amount: 9,  hall: 'Pret A Manger',     dorm: 'Rodin College House',      hot: false },
+    { amount: 5,  hall: "Joe's Café",         dorm: 'Harrison College House',   hot: false },
+  ];
+
+  const REQUESTER_STEPS = [
+    { num: '01', title: 'Pick your spot',    desc: 'Choose a dining hall and where on campus you want the order dropped off.' },
+    { num: '02', title: 'Set your bid',      desc: 'Name your price. Higher bids get claimed first — it\'s a live marketplace. Think of it like tipping upfront.' },
+    { num: '03', title: 'Get it delivered',  desc: 'A fellow student claims your order, grabs the food, and delivers it. Chat in-app to coordinate.' },
+  ];
+
+  const DELIVERER_STEPS = [
+    { num: '01', title: 'Browse open orders',  desc: 'See all open delivery requests sorted by bid amount. Filter by dining hall to find orders near where you\'re heading.' },
+    { num: '02', title: 'Claim what pays',     desc: 'Pick the orders worth your time. You\'re in control — no minimums, no commitment, no routes assigned to you.' },
+    { num: '03', title: 'Get paid instantly',  desc: 'Connect your bank via Stripe. 95% of the bid amount goes straight to you. We take a 5% platform fee.' },
+  ];
+
+  const FEATURES = [
+    { icon: '🎓', title: 'Penn Email Only',       desc: 'Login is gated to verified .edu addresses. Every person on the platform is a real Penn student.' },
+    { icon: '🔒', title: 'Secure Payments',       desc: 'Payments are processed by Stripe — the same infrastructure used by Amazon and Shopify. Your card data never touches our servers.' },
+    { icon: '💬', title: 'Built-in Chat',         desc: 'Every order opens a private chat between requester and deliverer. Coordinate delivery details in real time.' },
+    { icon: '⚡', title: 'Bid-Based Marketplace', desc: 'No fixed delivery fee. The bid is the fee. Higher bids attract faster delivery — the market self-regulates.' },
+  ];
+
+  return (
+    <div style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif', overflowX: 'hidden' }}>
+
+      {/* ── NAV ── */}
+      <nav style={ls.nav}>
+        <div style={ls.navInner}>
+          <div style={ls.navLogo}>🍽️ PennDash</div>
+          <button onClick={onGetStarted} style={ls.navLoginBtn}>Log In →</button>
+        </div>
+      </nav>
+
+      {/* ── HERO ── */}
+      <section style={ls.hero}>
+        <div style={ls.heroInner}>
+          <div style={ls.heroContent}>
+            <div className="pd-animate" style={ls.heroBadge}>🎓 Penn Students Only</div>
+            <h1 className="pd-animate pd-delay-1" style={ls.heroH1}>
+              Campus Food,<br />Delivered by<br /><span style={ls.heroAccent}>Students Like You</span>
+            </h1>
+            <p className="pd-animate pd-delay-2" style={ls.heroSub}>
+              PennDash is a peer-to-peer delivery marketplace. Post what you want from any Penn dining hall, set your bid, and a fellow Quaker delivers it.
+            </p>
+            <button className="pd-animate pd-delay-3" onClick={onGetStarted} style={ls.heroCta}>
+              Get Started — It's Free
+            </button>
+          </div>
+
+          {/* Live bid board mockup */}
+          <div className="pd-animate pd-delay-2" style={ls.bidBoard}>
+            <div style={ls.bidBoardHeader}>
+              <span style={ls.bidDot}></span>
+              Live Orders
+            </div>
+            {BIDS.map((o, i) => (
+              <div key={i} style={{ ...ls.bidRow, ...(o.hot ? ls.bidRowHot : {}) }}>
+                <span style={{ ...ls.bidAmount, color: o.hot ? '#10b981' : '#94a3b8' }}>${o.amount}</span>
+                <div style={ls.bidDetails}>
+                  <span style={ls.bidHall}>{o.hall}</span>
+                  <span style={ls.bidDorm}>→ {o.dorm}</span>
+                </div>
+                {o.hot && <span style={ls.hotBadge}>⚡ Hot</span>}
+              </div>
+            ))}
+            <div style={ls.bidBoardFooter}>Higher bid = picked up faster</div>
+          </div>
+        </div>
+
+        <div style={ls.scrollIndicator}>
+          <span style={ls.scrollText}>Scroll to learn more</span>
+          <span style={ls.scrollArrow}>↓</span>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS: REQUESTER ── */}
+      <section style={ls.sectionLight}>
+        <div style={ls.sectionInner}>
+          <div className="pd-animate" style={ls.sectionLabel}>For Requesters</div>
+          <h2 className="pd-animate" style={ls.sectionH2}>Get food delivered in minutes</h2>
+          <p className="pd-animate" style={ls.sectionSub}>
+            No app downloads. No subscriptions. Just post your order and let the marketplace work.
+          </p>
+          <div style={ls.stepsGrid}>
+            {REQUESTER_STEPS.map((s, i) => (
+              <div key={i} className={`pd-animate pd-delay-${i + 1}`} style={ls.stepCard}>
+                <div style={ls.stepNum}>{s.num}</div>
+                <h3 style={ls.stepTitle}>{s.title}</h3>
+                <p style={ls.stepDesc}>{s.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="pd-animate" style={ls.calloutBox}>
+            <span style={ls.calloutIcon}>💡</span>
+            <span>
+              <strong>Bid higher to move faster.</strong> Orders are sorted by bid amount — a $14 bid rises to the top of the list. If you're hungry now, it's worth it.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS: DELIVERER ── */}
+      <section style={ls.sectionDark}>
+        <div style={ls.sectionInner}>
+          <div className="pd-animate" style={ls.sectionLabelLight}>For Deliverers</div>
+          <h2 className="pd-animate" style={{ ...ls.sectionH2, color: 'white' }}>Turn campus runs into cash</h2>
+          <p className="pd-animate" style={{ ...ls.sectionSub, color: 'rgba(255,255,255,0.65)' }}>
+            Already heading to Houston? Pick up an order on the way and earn real money doing it.
+          </p>
+          <div style={ls.stepsGrid}>
+            {DELIVERER_STEPS.map((s, i) => (
+              <div key={i} className={`pd-animate pd-delay-${i + 1}`} style={ls.stepCardDark}>
+                <div style={ls.stepNumDark}>{s.num}</div>
+                <h3 style={{ ...ls.stepTitle, color: 'white' }}>{s.title}</h3>
+                <p style={{ ...ls.stepDesc, color: 'rgba(255,255,255,0.6)' }}>{s.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="pd-animate" style={ls.earningCallout}>
+            <span style={ls.earningLabel}>Example earnings</span>
+            <span style={ls.earningText}>
+              3 deliveries × $10 avg bid = <strong style={{ color: '#10b981' }}>$28.50 straight to your bank</strong>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── WHY PENNDASH ── */}
+      <section style={ls.sectionGray}>
+        <div style={ls.sectionInner}>
+          <div className="pd-animate" style={ls.sectionLabel}>Why PennDash</div>
+          <h2 className="pd-animate" style={ls.sectionH2}>Built for Penn, by Penn</h2>
+          <div style={ls.featuresGrid}>
+            {FEATURES.map((f, i) => (
+              <div key={i} className={`pd-animate pd-delay-${(i % 2) + 1}`} style={ls.featureCard}>
+                <span style={ls.featureIcon}>{f.icon}</span>
+                <h3 style={ls.featureTitle}>{f.title}</h3>
+                <p style={ls.featureDesc}>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section style={ls.ctaSection}>
+        <div className="pd-animate" style={ls.ctaContent}>
+          <h2 style={ls.ctaH2}>Ready to get started?</h2>
+          <p style={ls.ctaSub}>
+            Join Penn students already using PennDash to get food delivered — and to earn money while doing it.
+          </p>
+          <button onClick={onGetStarted} style={ls.ctaButton}>
+            Log In with Penn Email →
+          </button>
+          <p style={ls.ctaNote}>Free to join · Penn email required · Payments via Stripe</p>
+        </div>
+      </section>
+
+    </div>
+  );
+}
+
+// ============================================
 // MAIN APP COMPONENT
 // ============================================
 export default function PennDash() {
-  const [currentView, setCurrentView] = useState('login');
+  const [currentView, setCurrentView] = useState('home');
   const [email, setEmail] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [user, setUser] = useState(null);
@@ -455,6 +731,10 @@ export default function PennDash() {
   const [showStripeSetup, setShowStripeSetup] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
+
+  // Toast notification (3-second auto-dismiss)
+  const [toast, setToast] = useState('');
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
   useEffect(() => { checkExistingSession(); }, []);
 
@@ -590,7 +870,7 @@ export default function PennDash() {
     setUser(null);
     setEmail('');
     setVerificationCode('');
-    setCurrentView('login');
+    setCurrentView('home');
     setChats([]);
     setOpenChats([]);
     setStripeStatus({ connected: false, canReceivePayments: false });
@@ -649,9 +929,12 @@ export default function PennDash() {
     }
 
     const { error } = await supabase.from('orders').update({ status: 'claimed', claimed_by: user.email }).eq('id', order.id);
-    if (error) return;
-    
-    const { data: newChat } = await supabase.from('chats').insert([{
+    if (error) {
+      showToast('Failed to claim order — please try again.');
+      return;
+    }
+
+    const { data: newChat, error: chatError } = await supabase.from('chats').insert([{
       order_id: order.id,
       requester_email: order.user_email,
       deliverer_email: user.email,
@@ -661,12 +944,33 @@ export default function PennDash() {
       created_at: new Date().toISOString(),
       status: 'active'
     }]);
-    
+
+    if (chatError) showToast('Order claimed but chat failed to open. Refresh the page.');
+
     if (newChat?.[0]) {
       setOpenChats(p => [...p, newChat[0].id]);
       loadChats();
     }
     loadOrders();
+  };
+
+  const handleMarkDelivered = async (orderId) => {
+    try {
+      const token = authService.getToken();
+      const r = await fetch(`${API_URL}/api/orders/${orderId}/complete`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await r.json();
+      if (!r.ok) {
+        showToast(result.error || 'Failed to mark as delivered.');
+        return;
+      }
+      showToast('Order marked as delivered!');
+      loadOrders();
+    } catch {
+      showToast('Connection error — please try again.');
+    }
   };
 
   const handlePayOrder = (order) => {
@@ -751,6 +1055,13 @@ export default function PennDash() {
     const deliveryDate = new Date(orderDate.getTime() + minutes * 60000);
     return deliveryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  // ============================================
+  // RENDER: HOME (Landing Page)
+  // ============================================
+  if (currentView === 'home' && !initialLoading) {
+    return <LandingPage onGetStarted={() => setCurrentView('login')} />;
+  }
 
   // ============================================
   // RENDER: LOADING
@@ -862,6 +1173,9 @@ export default function PennDash() {
 
   return (
     <div style={styles.dashboardContainer}>
+      {/* Toast notification */}
+      {toast && <div style={styles.toast}>{toast}</div>}
+
       {/* Header */}
       <header style={styles.header}>
         <div style={styles.headerContent}>
@@ -1040,6 +1354,54 @@ export default function PennDash() {
           </section>
         )}
 
+        {/* Deliveries I'm Doing */}
+        {claimedOrders.filter(o => o.status !== 'delivered').length > 0 && (
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>🚴 Deliveries I'm Doing</h2>
+            <div style={styles.activityList}>
+              {claimedOrders.filter(o => o.status !== 'delivered').map(order => (
+                <div key={order.id} style={styles.activityItem}>
+                  <div style={styles.activityInfo}>
+                    <div>
+                      <strong>${order.amount?.toFixed(2)}</strong> • {order.dining_hall} → {order.dorm}<br/>
+                      <span style={{ color: '#64748b', fontSize: '14px' }}>
+                        {order.payment_status === 'paid' ? '💳 Paid — ready to deliver' : '⏳ Waiting for requester payment'}
+                      </span>
+                    </div>
+                  </div>
+                  {order.payment_status === 'paid' && (
+                    <button onClick={() => handleMarkDelivered(order.id)} style={styles.deliveredButton}>
+                      ✓ Mark Delivered
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* My Paid Orders — Awaiting Delivery */}
+        {myOrders.filter(o => o.payment_status === 'paid' && o.status !== 'delivered').length > 0 && (
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>📦 Awaiting Delivery</h2>
+            <div style={styles.activityList}>
+              {myOrders.filter(o => o.payment_status === 'paid' && o.status !== 'delivered').map(order => (
+                <div key={order.id} style={styles.activityItem}>
+                  <div style={styles.activityInfo}>
+                    <div>
+                      <strong>${order.amount?.toFixed(2)}</strong> • {order.dining_hall}<br/>
+                      <span style={{ color: '#64748b', fontSize: '14px' }}>Delivery by {order.claimed_by?.split('@')[0]}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => handleMarkDelivered(order.id)} style={styles.confirmButton}>
+                    ✓ Confirm Received
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Active Chats */}
         {chats.length > 0 && (
           <section style={styles.section}>
@@ -1135,7 +1497,8 @@ const modalStyles = {
   successContent: { padding: '48px 24px', textAlign: 'center' },
   setupContent: { padding: '24px' },
   benefitsList: { marginBottom: '24px' },
-  benefitItem: { padding: '12px 16px', backgroundColor: '#f0fdf4', borderRadius: '8px', marginBottom: '8px', color: '#166534', fontSize: '14px' }
+  benefitItem: { padding: '12px 16px', backgroundColor: '#f0fdf4', borderRadius: '8px', marginBottom: '8px', color: '#166534', fontSize: '14px' },
+  stripeCardWrapper: { border: '2px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', backgroundColor: 'white', marginTop: '6px' }
 };
 
 // ============================================
@@ -1251,14 +1614,26 @@ const styles = {
   claimButton: { flex: 1, padding: '12px 20px', fontSize: '15px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #011F5B, #1a3a7a)', border: 'none', borderRadius: '10px', cursor: 'pointer' },
   cancelButton: { flex: 1, padding: '12px 20px', fontSize: '15px', fontWeight: '500', color: '#dc2626', backgroundColor: '#fef2f2', border: '2px solid #fecaca', borderRadius: '10px', cursor: 'pointer' },
   payNowButton: { padding: '10px 20px', fontSize: '14px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #059669, #10b981)', border: 'none', borderRadius: '8px', cursor: 'pointer' },
+  deliveredButton: { padding: '10px 20px', fontSize: '14px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #059669, #10b981)', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' },
+  confirmButton: { padding: '10px 20px', fontSize: '14px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #7c3aed, #8b5cf6)', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' },
+  toast: { position: 'fixed', top: '80px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#1e293b', color: 'white', padding: '12px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', pointerEvents: 'none' },
   activityList: { display: 'flex', flexDirection: 'column', gap: '12px' },
   activityItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0' },
   activityInfo: { display: 'flex', alignItems: 'center' }
 };
 
-// Add keyframes
+// Add keyframes + landing page animation classes
 if (typeof document !== 'undefined') {
   const style = document.createElement('style');
-  style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+  style.textContent = `
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pd-bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(10px); } }
+    @keyframes pd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pd-animate { opacity: 0; transform: translateY(36px); transition: opacity 0.7s ease, transform 0.7s ease; }
+    .pd-animate.pd-visible { opacity: 1; transform: translateY(0); }
+    .pd-delay-1 { transition-delay: 0.1s; }
+    .pd-delay-2 { transition-delay: 0.2s; }
+    .pd-delay-3 { transition-delay: 0.32s; }
+  `;
   document.head.appendChild(style);
 }
