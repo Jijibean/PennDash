@@ -150,19 +150,19 @@ function StripePaymentForm({ order, clientSecret, breakdown, onClose, onPaymentS
     <form onSubmit={handleSubmit}>
       <div style={modalStyles.orderSummary}>
         <div style={modalStyles.summaryRow}>
-          <span>Order from {order.dining_hall}</span>
-          <span style={{ fontWeight: '600' }}>${order.amount?.toFixed(2)}</span>
+          <span style={{ color: '#374151', fontWeight: '500' }}>Order from {order.dining_hall}</span>
+          <span style={{ fontWeight: '700', color: '#111827' }}>${order.amount?.toFixed(2)}</span>
         </div>
         <div style={modalStyles.summaryRow}>
-          <span>Deliver to {order.dorm}</span>
+          <span style={{ color: '#6B7280', fontSize: '14px' }}>Deliver to {order.dorm}</span>
         </div>
         <div style={modalStyles.divider}></div>
         <div style={modalStyles.summaryRow}>
-          <span style={{ color: '#64748b', fontSize: '14px' }}>Platform fee (5%)</span>
-          <span style={{ color: '#64748b', fontSize: '14px' }}>-${platformFee.toFixed(2)}</span>
+          <span style={{ color: '#9CA3AF', fontSize: '14px' }}>Platform fee (5%)</span>
+          <span style={{ color: '#9CA3AF', fontSize: '14px' }}>-${platformFee.toFixed(2)}</span>
         </div>
         <div style={modalStyles.summaryRow}>
-          <span style={{ color: '#64748b', fontSize: '14px' }}>Deliverer receives</span>
+          <span style={{ color: '#9CA3AF', fontSize: '14px' }}>Deliverer receives</span>
           <span style={{ color: '#059669', fontSize: '14px', fontWeight: '600' }}>${delivererReceives.toFixed(2)}</span>
         </div>
       </div>
@@ -173,7 +173,7 @@ function StripePaymentForm({ order, clientSecret, breakdown, onClose, onPaymentS
           <div style={modalStyles.stripeCardWrapper}>
             <CardElement options={{
               style: {
-                base: { fontSize: '16px', color: '#1e293b', fontFamily: 'inherit', '::placeholder': { color: '#94a3b8' } },
+                base: { fontSize: '16px', color: '#111827', fontFamily: 'Inter, inherit', '::placeholder': { color: '#9CA3AF' } },
                 invalid: { color: '#dc2626' }
               }
             }} />
@@ -225,18 +225,18 @@ function PaymentModal({ order, onClose, onPaymentSuccess }) {
           <p style={modalStyles.error}>
             Stripe is not configured. Add <code>VITE_STRIPE_PUBLISHABLE_KEY</code> to your <code>.env</code> file and restart the dev server.
           </p>
-          <button onClick={onClose} style={{ ...modalStyles.payButton, background: '#64748b' }}>Close</button>
+          <button onClick={onClose} style={{ ...modalStyles.payButton, background: '#6B7280' }}>Close</button>
         </div>
       );
     }
     if (initLoading) {
-      return <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>Preparing payment...</div>;
+      return <div style={{ padding: '48px', textAlign: 'center', color: '#6B7280' }}>Preparing payment...</div>;
     }
     if (initError) {
       return (
         <div style={{ padding: '24px' }}>
           <p style={modalStyles.error}>{initError}</p>
-          <button onClick={onClose} style={{ ...modalStyles.payButton, background: '#64748b', width: 'calc(100% - 48px)', margin: '0 24px' }}>Close</button>
+          <button onClick={onClose} style={{ ...modalStyles.payButton, background: '#6B7280', width: 'calc(100% - 48px)', margin: '0 24px' }}>Close</button>
         </div>
       );
     }
@@ -257,7 +257,7 @@ function PaymentModal({ order, onClose, onPaymentSuccess }) {
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
-          <h2 style={modalStyles.title}>💳 Pay for Delivery</h2>
+          <h2 style={modalStyles.title}>Pay for Delivery</h2>
           <button onClick={onClose} style={modalStyles.closeBtn}>✕</button>
         </div>
         {body()}
@@ -296,13 +296,13 @@ function StripeSetupModal({ onClose, onSetupComplete }) {
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
         <div style={modalStyles.header}>
-          <h2 style={modalStyles.title}>💰 Set Up Payments</h2>
+          <h2 style={modalStyles.title}>Set Up Payments</h2>
           <button onClick={onClose} style={modalStyles.closeBtn}>✕</button>
         </div>
 
         <div style={modalStyles.setupContent}>
           <span style={{ fontSize: '48px', display: 'block', textAlign: 'center', marginBottom: '16px' }}>🏦</span>
-          <p style={{ textAlign: 'center', color: '#475569', marginBottom: '24px' }}>
+          <p style={{ textAlign: 'center', color: '#4B5563', marginBottom: '24px', lineHeight: 1.6 }}>
             To receive payments for deliveries, you need to connect your bank account through Stripe.
           </p>
 
@@ -367,7 +367,7 @@ function ChatPopup({ chat, currentUser, onClose, onSendMessage, messages, onMini
           <div style={chatStyles.chatAvatar}>{otherUserName[0].toUpperCase()}</div>
           <div style={chatStyles.chatHeaderText}>
             <span style={chatStyles.chatHeaderName}>{otherUserName}</span>
-            <span style={chatStyles.chatHeaderSub}>${chat.order_amount?.toFixed(2)} • {chat.dining_hall}</span>
+            <span style={chatStyles.chatHeaderSub}>${chat.order_amount?.toFixed(2)} · {chat.dining_hall}</span>
           </div>
         </div>
         <div style={chatStyles.chatHeaderActions}>
@@ -378,8 +378,8 @@ function ChatPopup({ chat, currentUser, onClose, onSendMessage, messages, onMini
       <div style={chatStyles.orderBanner}>
         <span>🍽️</span>
         <span style={chatStyles.orderBannerText}>
-          {chat.requester_email === currentUser 
-            ? `${otherUserName} is delivering your order` 
+          {chat.requester_email === currentUser
+            ? `${otherUserName} is delivering your order`
             : `You're delivering to ${otherUserName}`}
         </span>
       </div>
@@ -387,7 +387,7 @@ function ChatPopup({ chat, currentUser, onClose, onSendMessage, messages, onMini
         {messages.length === 0 ? (
           <div style={chatStyles.emptyMessages}>
             <span style={{ fontSize: '32px' }}>👋</span>
-            <p>Start the conversation!</p>
+            <p style={{ marginTop: '8px', fontSize: '14px' }}>Start the conversation!</p>
           </div>
         ) : (
           messages.map((msg, i) => {
@@ -397,7 +397,7 @@ function ChatPopup({ chat, currentUser, onClose, onSendMessage, messages, onMini
                 {!isMe && <div style={chatStyles.messageAvatar}>{otherUserName[0].toUpperCase()}</div>}
                 <div style={{ ...chatStyles.messageBubble, ...(isMe ? chatStyles.messageBubbleMine : chatStyles.messageBubbleTheirs) }}>
                   <p style={chatStyles.messageText}>{msg.content}</p>
-                  <span style={{ ...chatStyles.messageTime, color: isMe ? 'rgba(255,255,255,0.7)' : '#94a3b8' }}>
+                  <span style={{ ...chatStyles.messageTime, color: isMe ? 'rgba(255,255,255,0.65)' : '#9CA3AF' }}>
                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
@@ -458,71 +458,128 @@ function VerificationCodeInput({ length = 6, value, onChange, disabled }) {
 // LANDING PAGE STYLES
 // ============================================
 const ls = {
-  nav: { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, padding: '16px 24px', background: 'rgba(1,31,91,0.96)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.08)' },
-  navInner: { maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  navLogo: { fontSize: '20px', fontWeight: '800', color: 'white', letterSpacing: '-0.3px' },
-  navLoginBtn: { padding: '8px 20px', fontSize: '14px', fontWeight: '700', color: '#011F5B', backgroundColor: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' },
+  nav: {
+    position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
+    padding: '16px 32px',
+    background: 'rgba(1,31,91,0.92)',
+    backdropFilter: 'blur(16px)',
+    borderBottom: '1px solid rgba(255,255,255,0.07)'
+  },
+  navInner: { maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  navLogo: { fontSize: '22px', fontWeight: '800', color: 'white', letterSpacing: '-0.5px' },
+  navLoginBtn: {
+    padding: '10px 22px', fontSize: '14px', fontWeight: '700',
+    color: '#011F5B', backgroundColor: 'white',
+    border: 'none', borderRadius: '10px', cursor: 'pointer',
+    letterSpacing: '-0.2px'
+  },
 
-  hero: { minHeight: '100vh', background: 'linear-gradient(150deg, #011F5B 0%, #0d2d6b 55%, #1a1a3e 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '100px 24px 80px', position: 'relative', overflow: 'hidden' },
-  heroInner: { display: 'flex', gap: '48px', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '1100px', width: '100%', zIndex: 1 },
-  heroContent: { flex: '1', minWidth: '300px', maxWidth: '520px' },
-  heroBadge: { display: 'inline-block', padding: '6px 16px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.85)', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginBottom: '28px', border: '1px solid rgba(255,255,255,0.15)' },
-  heroH1: { fontSize: 'clamp(36px, 5.5vw, 62px)', fontWeight: '800', color: 'white', lineHeight: 1.1, letterSpacing: '-1.5px', margin: '0 0 24px' },
-  heroAccent: { color: '#10b981' },
-  heroSub: { fontSize: '18px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.65, margin: '0 0 36px', maxWidth: '460px' },
-  heroCta: { display: 'inline-block', padding: '16px 32px', fontSize: '17px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg, #990000, #c41e3a)', border: 'none', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 8px 32px rgba(153,0,0,0.35)' },
+  hero: {
+    minHeight: '100vh',
+    backgroundImage: 'linear-gradient(rgba(1,31,91,0.82), rgba(1,31,91,0.82)), url("https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?auto=format&fit=crop&w=1400&q=80")',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    padding: '120px 24px 100px',
+    position: 'relative', overflow: 'hidden'
+  },
+  heroInner: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    textAlign: 'center', maxWidth: '820px', width: '100%', zIndex: 1, gap: '0px'
+  },
+  heroH1: {
+    fontSize: '68px', fontWeight: '800', color: 'white',
+    lineHeight: 1.05, letterSpacing: '-2px', margin: '0 0 24px'
+  },
+  heroSub: {
+    fontSize: '20px', color: 'rgba(255,255,255,0.75)',
+    lineHeight: 1.65, margin: '0 0 40px', maxWidth: '520px'
+  },
+  heroBtns: { display: 'flex', gap: '14px', justifyContent: 'center', marginBottom: '56px', flexWrap: 'wrap' },
+  heroCtaFill: {
+    padding: '16px 32px', fontSize: '16px', fontWeight: '700',
+    color: 'white', background: '#011F5B',
+    border: '2px solid rgba(255,255,255,0.25)',
+    borderRadius: '12px', cursor: 'pointer',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+  },
+  heroCtaOutline: {
+    padding: '16px 32px', fontSize: '16px', fontWeight: '700',
+    color: 'white', background: 'transparent',
+    border: '2px solid rgba(255,255,255,0.4)',
+    borderRadius: '12px', cursor: 'pointer'
+  },
 
-  bidBoard: { flex: '1', minWidth: '280px', maxWidth: '400px', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '20px', overflow: 'hidden' },
-  bidBoardHeader: { padding: '14px 20px', backgroundColor: 'rgba(0,0,0,0.25)', fontSize: '12px', fontWeight: '700', color: 'rgba(255,255,255,0.6)', letterSpacing: '1px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' },
-  bidDot: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block', animation: 'pd-pulse 1.5s ease-in-out infinite' },
-  bidRow: { display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', transition: 'background 0.2s' },
-  bidRowHot: { backgroundColor: 'rgba(16,185,129,0.07)' },
-  bidAmount: { fontSize: '24px', fontWeight: '800', minWidth: '50px' },
+  bidBoard: {
+    width: '100%', maxWidth: '420px',
+    background: 'rgba(255,255,255,0.08)',
+    backdropFilter: 'blur(16px)',
+    border: '1px solid rgba(255,255,255,0.14)',
+    borderRadius: '20px', overflow: 'hidden',
+    margin: '0 auto'
+  },
+  bidBoardHeader: {
+    padding: '14px 20px',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    fontSize: '11px', fontWeight: '700',
+    color: 'rgba(255,255,255,0.55)',
+    letterSpacing: '1.5px', textTransform: 'uppercase',
+    display: 'flex', alignItems: 'center', gap: '8px'
+  },
+  bidDot: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block', animation: 'pd-pulse 1.5s ease-in-out infinite' },
+  bidRow: { display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' },
+  bidRowHot: { backgroundColor: 'rgba(34,197,94,0.08)' },
+  bidAmount: { fontSize: '26px', fontWeight: '800', minWidth: '52px' },
   bidDetails: { flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' },
   bidHall: { fontSize: '14px', fontWeight: '600', color: 'white' },
-  bidDorm: { fontSize: '12px', color: 'rgba(255,255,255,0.45)' },
-  hotBadge: { padding: '4px 10px', backgroundColor: 'rgba(16,185,129,0.2)', color: '#10b981', borderRadius: '12px', fontSize: '12px', fontWeight: '700' },
-  bidBoardFooter: { padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', fontStyle: 'italic' },
+  bidDorm: { fontSize: '12px', color: 'rgba(255,255,255,0.4)' },
+  hotBadge: { padding: '4px 10px', backgroundColor: 'rgba(34,197,94,0.2)', color: '#22c55e', borderRadius: '20px', fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap' },
+  bidBoardFooter: { padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.3)', textAlign: 'center', fontStyle: 'italic' },
 
   scrollIndicator: { position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', animation: 'pd-bounce 2s ease-in-out infinite' },
-  scrollText: { fontSize: '11px', letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: '600', color: 'rgba(255,255,255,0.35)' },
-  scrollArrow: { fontSize: '18px', color: 'rgba(255,255,255,0.35)' },
+  scrollText: { fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '600', color: 'rgba(255,255,255,0.3)' },
+  scrollArrow: { fontSize: '18px', color: 'rgba(255,255,255,0.3)' },
 
   sectionLight: { padding: '100px 24px', backgroundColor: 'white' },
   sectionDark: { padding: '100px 24px', backgroundColor: '#011F5B' },
-  sectionGray: { padding: '100px 24px', backgroundColor: '#f1f5f9' },
+  sectionGray: { padding: '100px 24px', backgroundColor: '#F1F5F9' },
   sectionInner: { maxWidth: '1100px', margin: '0 auto' },
-  sectionLabel: { display: 'inline-block', padding: '5px 14px', backgroundColor: '#dbeafe', color: '#1d4ed8', borderRadius: '20px', fontSize: '12px', fontWeight: '700', marginBottom: '20px', letterSpacing: '0.5px', textTransform: 'uppercase' },
-  sectionLabelLight: { display: 'inline-block', padding: '5px 14px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.75)', borderRadius: '20px', fontSize: '12px', fontWeight: '700', marginBottom: '20px', letterSpacing: '0.5px', textTransform: 'uppercase' },
-  sectionH2: { fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: '800', color: '#0f172a', lineHeight: 1.15, margin: '0 0 16px', letterSpacing: '-0.5px' },
-  sectionSub: { fontSize: '18px', color: '#64748b', lineHeight: 1.65, margin: '0 0 56px', maxWidth: '560px' },
+  sectionLabel: { display: 'inline-block', padding: '5px 14px', backgroundColor: '#dbeafe', color: '#1d4ed8', borderRadius: '20px', fontSize: '11px', fontWeight: '700', marginBottom: '20px', letterSpacing: '0.8px', textTransform: 'uppercase' },
+  sectionLabelLight: { display: 'inline-block', padding: '5px 14px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', borderRadius: '20px', fontSize: '11px', fontWeight: '700', marginBottom: '20px', letterSpacing: '0.8px', textTransform: 'uppercase' },
+  sectionH2: { fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: '800', color: '#111827', lineHeight: 1.15, margin: '0 0 16px', letterSpacing: '-0.5px' },
+  sectionSub: { fontSize: '18px', color: '#6B7280', lineHeight: 1.65, margin: '0 0 56px', maxWidth: '560px' },
 
   stepsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', marginBottom: '36px' },
-  stepCard: { padding: '32px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' },
+  stepCard: { padding: '32px', backgroundColor: '#F9FAFB', borderRadius: '16px', border: '1px solid #E5E7EB' },
   stepCardDark: { padding: '32px', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.09)' },
-  stepNum: { fontSize: '12px', fontWeight: '800', color: '#cbd5e1', letterSpacing: '2px', marginBottom: '16px' },
-  stepNumDark: { fontSize: '12px', fontWeight: '800', color: 'rgba(255,255,255,0.25)', letterSpacing: '2px', marginBottom: '16px' },
-  stepTitle: { fontSize: '19px', fontWeight: '700', color: '#0f172a', margin: '0 0 10px' },
-  stepDesc: { fontSize: '15px', color: '#64748b', lineHeight: 1.65, margin: 0 },
+  stepNum: { fontSize: '13px', fontWeight: '800', color: '#D1D5DB', letterSpacing: '2px', marginBottom: '16px' },
+  stepNumDark: { fontSize: '13px', fontWeight: '800', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', marginBottom: '16px' },
+  stepTitle: { fontSize: '19px', fontWeight: '700', color: '#111827', margin: '0 0 10px' },
+  stepDesc: { fontSize: '15px', color: '#6B7280', lineHeight: 1.65, margin: 0 },
 
   calloutBox: { display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '20px 24px', backgroundColor: '#fefce8', border: '1px solid #fde047', borderRadius: '12px', fontSize: '15px', color: '#713f12', lineHeight: 1.55 },
   calloutIcon: { fontSize: '20px', flexShrink: 0, marginTop: '2px' },
-  earningCallout: { padding: '24px 28px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '12px' },
-  earningLabel: { fontSize: '11px', fontWeight: '800', color: '#10b981', textTransform: 'uppercase', letterSpacing: '1.5px', display: 'block', marginBottom: '8px' },
+  earningCallout: { padding: '24px 28px', background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '12px' },
+  earningLabel: { fontSize: '11px', fontWeight: '800', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '1.5px', display: 'block', marginBottom: '8px' },
   earningText: { fontSize: '18px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 },
 
   featuresGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '48px' },
-  featureCard: { padding: '32px', backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' },
+  featureCard: { padding: '32px', backgroundColor: 'white', borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' },
   featureIcon: { fontSize: '32px', display: 'block', marginBottom: '18px' },
-  featureTitle: { fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 10px' },
-  featureDesc: { fontSize: '15px', color: '#64748b', lineHeight: 1.65, margin: 0 },
+  featureTitle: { fontSize: '18px', fontWeight: '700', color: '#111827', margin: '0 0 10px' },
+  featureDesc: { fontSize: '15px', color: '#6B7280', lineHeight: 1.65, margin: 0 },
 
-  ctaSection: { padding: '120px 24px', background: 'linear-gradient(150deg, #011F5B 0%, #1a1a3e 100%)', textAlign: 'center' },
+  ctaSection: { padding: '120px 24px', background: 'linear-gradient(150deg, #011F5B 0%, #000d2e 100%)', textAlign: 'center' },
   ctaContent: { maxWidth: '620px', margin: '0 auto' },
   ctaH2: { fontSize: 'clamp(30px, 5vw, 52px)', fontWeight: '800', color: 'white', lineHeight: 1.15, letterSpacing: '-0.5px', margin: '0 0 20px' },
-  ctaSub: { fontSize: '18px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.65, margin: '0 0 40px' },
-  ctaButton: { padding: '18px 44px', fontSize: '18px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg, #990000, #c41e3a)', border: 'none', borderRadius: '14px', cursor: 'pointer', boxShadow: '0 8px 32px rgba(153,0,0,0.4)' },
-  ctaNote: { marginTop: '24px', fontSize: '13px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.2px' },
+  ctaSub: { fontSize: '18px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.65, margin: '0 0 40px' },
+  ctaButton: {
+    padding: '18px 44px', fontSize: '18px', fontWeight: '700',
+    color: 'white', background: 'linear-gradient(135deg, #990000, #c41e3a)',
+    border: 'none', borderRadius: '14px', cursor: 'pointer',
+    boxShadow: '0 8px 32px rgba(153,0,0,0.4)'
+  },
+  ctaNote: { marginTop: '24px', fontSize: '13px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.2px' },
 };
 
 // ============================================
@@ -539,32 +596,32 @@ function LandingPage({ onGetStarted }) {
   }, []);
 
   const BIDS = [
-    { amount: 14, hall: 'Houston Market',    dorm: 'Hill College House',       hot: true  },
-    { amount: 9,  hall: 'Pret A Manger',     dorm: 'Rodin College House',      hot: false },
-    { amount: 5,  hall: "Joe's Café",         dorm: 'Harrison College House',   hot: false },
+    { amount: 14, hall: 'Houston Market',  dorm: 'Hill College House',     hot: true  },
+    { amount: 9,  hall: 'Pret A Manger',   dorm: 'Rodin College House',    hot: false },
+    { amount: 5,  hall: "Joe's Café",       dorm: 'Harrison College House', hot: false },
   ];
 
   const REQUESTER_STEPS = [
-    { num: '01', title: 'Pick your spot',    desc: 'Choose a dining hall and where on campus you want the order dropped off.' },
-    { num: '02', title: 'Set your bid',      desc: 'Name your price. Higher bids get claimed first — it\'s a live marketplace. Think of it like tipping upfront.' },
-    { num: '03', title: 'Get it delivered',  desc: 'A fellow student claims your order, grabs the food, and delivers it. Chat in-app to coordinate.' },
+    { num: '01', title: 'Pick your spot',   desc: 'Choose a dining hall and where on campus you want the order dropped off.' },
+    { num: '02', title: 'Set your bid',     desc: "Name your price. Higher bids get claimed first — it's a live marketplace. Think of it like tipping upfront." },
+    { num: '03', title: 'Get it delivered', desc: 'A fellow student claims your order, grabs the food, and delivers it. Chat in-app to coordinate.' },
   ];
 
   const DELIVERER_STEPS = [
-    { num: '01', title: 'Browse open orders',  desc: 'See all open delivery requests sorted by bid amount. Filter by dining hall to find orders near where you\'re heading.' },
-    { num: '02', title: 'Claim what pays',     desc: 'Pick the orders worth your time. You\'re in control — no minimums, no commitment, no routes assigned to you.' },
+    { num: '01', title: 'Browse open orders',  desc: "See all open delivery requests sorted by bid amount. Filter by dining hall to find orders near where you're heading." },
+    { num: '02', title: 'Claim what pays',     desc: "Pick the orders worth your time. You're in control — no minimums, no commitment, no routes assigned to you." },
     { num: '03', title: 'Get paid instantly',  desc: 'Connect your bank via Stripe. 95% of the bid amount goes straight to you. We take a 5% platform fee.' },
   ];
 
   const FEATURES = [
-    { icon: '🎓', title: 'Penn Email Only',       desc: 'Login is gated to verified .edu addresses. Every person on the platform is a real Penn student.' },
-    { icon: '🔒', title: 'Secure Payments',       desc: 'Payments are processed by Stripe — the same infrastructure used by Amazon and Shopify. Your card data never touches our servers.' },
-    { icon: '💬', title: 'Built-in Chat',         desc: 'Every order opens a private chat between requester and deliverer. Coordinate delivery details in real time.' },
-    { icon: '⚡', title: 'Bid-Based Marketplace', desc: 'No fixed delivery fee. The bid is the fee. Higher bids attract faster delivery — the market self-regulates.' },
+    { icon: '🎓', title: 'Penn Email Only',        desc: 'Login is gated to verified .edu addresses. Every person on the platform is a real Penn student.' },
+    { icon: '🔒', title: 'Secure Payments',        desc: 'Payments are processed by Stripe — the same infrastructure used by Amazon and Shopify. Your card data never touches our servers.' },
+    { icon: '💬', title: 'Built-in Chat',          desc: 'Every order opens a private chat between requester and deliverer. Coordinate delivery details in real time.' },
+    { icon: '⚡', title: 'Bid-Based Marketplace',  desc: 'No fixed delivery fee. The bid is the fee. Higher bids attract faster delivery — the market self-regulates.' },
   ];
 
   return (
-    <div style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif', overflowX: 'hidden' }}>
+    <div style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", overflowX: 'hidden' }}>
 
       {/* ── NAV ── */}
       <nav style={ls.nav}>
@@ -577,33 +634,31 @@ function LandingPage({ onGetStarted }) {
       {/* ── HERO ── */}
       <section style={ls.hero}>
         <div style={ls.heroInner}>
-          <div style={ls.heroContent}>
-            <div className="pd-animate" style={ls.heroBadge}>🎓 Penn Students Only</div>
-            <h1 className="pd-animate pd-delay-1" style={ls.heroH1}>
-              Campus Food,<br />Delivered by<br /><span style={ls.heroAccent}>Students Like You</span>
-            </h1>
-            <p className="pd-animate pd-delay-2" style={ls.heroSub}>
-              PennDash is a peer-to-peer delivery marketplace. Post what you want from any Penn dining hall, set your bid, and a fellow Quaker delivers it.
-            </p>
-            <button className="pd-animate pd-delay-3" onClick={onGetStarted} style={ls.heroCta}>
-              Get Started — It's Free
-            </button>
+          <h1 className="pd-animate" style={ls.heroH1}>
+            Campus Food, Delivered<br />by Penn Students
+          </h1>
+          <p className="pd-animate pd-delay-1" style={ls.heroSub}>
+            Post your order from any Penn dining hall. Set your bid. A fellow Quaker delivers it.
+          </p>
+          <div className="pd-animate pd-delay-2" style={ls.heroBtns}>
+            <button onClick={onGetStarted} style={ls.heroCtaFill}>Get Food Delivered</button>
+            <button onClick={onGetStarted} style={ls.heroCtaOutline}>Start Earning</button>
           </div>
 
-          {/* Live bid board mockup */}
-          <div className="pd-animate pd-delay-2" style={ls.bidBoard}>
+          {/* Live bid board */}
+          <div className="pd-animate pd-delay-3" style={ls.bidBoard}>
             <div style={ls.bidBoardHeader}>
               <span style={ls.bidDot}></span>
-              Live Orders
+              Live Bids
             </div>
             {BIDS.map((o, i) => (
               <div key={i} style={{ ...ls.bidRow, ...(o.hot ? ls.bidRowHot : {}) }}>
-                <span style={{ ...ls.bidAmount, color: o.hot ? '#10b981' : '#94a3b8' }}>${o.amount}</span>
+                <span style={{ ...ls.bidAmount, color: o.hot ? '#22c55e' : '#9CA3AF' }}>${o.amount}</span>
                 <div style={ls.bidDetails}>
                   <span style={ls.bidHall}>{o.hall}</span>
                   <span style={ls.bidDorm}>→ {o.dorm}</span>
                 </div>
-                {o.hot && <span style={ls.hotBadge}>⚡ Hot</span>}
+                {o.hot && <span style={ls.hotBadge}>⚡ Top Bid</span>}
               </div>
             ))}
             <div style={ls.bidBoardFooter}>Higher bid = picked up faster</div>
@@ -620,7 +675,7 @@ function LandingPage({ onGetStarted }) {
       <section style={ls.sectionLight}>
         <div style={ls.sectionInner}>
           <div className="pd-animate" style={ls.sectionLabel}>For Requesters</div>
-          <h2 className="pd-animate" style={ls.sectionH2}>Get food delivered in minutes</h2>
+          <h2 className="pd-animate" style={ls.sectionH2}>Getting food has never been easier</h2>
           <p className="pd-animate" style={ls.sectionSub}>
             No app downloads. No subscriptions. Just post your order and let the marketplace work.
           </p>
@@ -636,7 +691,7 @@ function LandingPage({ onGetStarted }) {
           <div className="pd-animate" style={ls.calloutBox}>
             <span style={ls.calloutIcon}>💡</span>
             <span>
-              <strong>Bid higher to move faster.</strong> Orders are sorted by bid amount — a $14 bid rises to the top of the list. If you're hungry now, it's worth it.
+              <strong>Higher bid = faster pickup</strong> — it's a live marketplace. Orders are sorted by bid amount — a $14 bid rises to the top of the list.
             </span>
           </div>
         </div>
@@ -646,8 +701,8 @@ function LandingPage({ onGetStarted }) {
       <section style={ls.sectionDark}>
         <div style={ls.sectionInner}>
           <div className="pd-animate" style={ls.sectionLabelLight}>For Deliverers</div>
-          <h2 className="pd-animate" style={{ ...ls.sectionH2, color: 'white' }}>Turn campus runs into cash</h2>
-          <p className="pd-animate" style={{ ...ls.sectionSub, color: 'rgba(255,255,255,0.65)' }}>
+          <h2 className="pd-animate" style={{ ...ls.sectionH2, color: 'white' }}>Earn money on every campus run</h2>
+          <p className="pd-animate" style={{ ...ls.sectionSub, color: 'rgba(255,255,255,0.6)' }}>
             Already heading to Houston? Pick up an order on the way and earn real money doing it.
           </p>
           <div style={ls.stepsGrid}>
@@ -655,14 +710,14 @@ function LandingPage({ onGetStarted }) {
               <div key={i} className={`pd-animate pd-delay-${i + 1}`} style={ls.stepCardDark}>
                 <div style={ls.stepNumDark}>{s.num}</div>
                 <h3 style={{ ...ls.stepTitle, color: 'white' }}>{s.title}</h3>
-                <p style={{ ...ls.stepDesc, color: 'rgba(255,255,255,0.6)' }}>{s.desc}</p>
+                <p style={{ ...ls.stepDesc, color: 'rgba(255,255,255,0.55)' }}>{s.desc}</p>
               </div>
             ))}
           </div>
           <div className="pd-animate" style={ls.earningCallout}>
             <span style={ls.earningLabel}>Example earnings</span>
             <span style={ls.earningText}>
-              3 deliveries × $10 avg bid = <strong style={{ color: '#10b981' }}>$28.50 straight to your bank</strong>
+              3 deliveries × $10 avg bid = <strong style={{ color: '#22c55e' }}>$28.50 straight to your bank</strong>
             </span>
           </div>
         </div>
@@ -672,7 +727,7 @@ function LandingPage({ onGetStarted }) {
       <section style={ls.sectionGray}>
         <div style={ls.sectionInner}>
           <div className="pd-animate" style={ls.sectionLabel}>Why PennDash</div>
-          <h2 className="pd-animate" style={ls.sectionH2}>Built for Penn, by Penn</h2>
+          <h2 className="pd-animate" style={ls.sectionH2}>Why Penn students love PennDash</h2>
           <div style={ls.featuresGrid}>
             {FEATURES.map((f, i) => (
               <div key={i} className={`pd-animate pd-delay-${(i % 2) + 1}`} style={ls.featureCard}>
@@ -725,7 +780,7 @@ export default function PennDash() {
   const [openChats, setOpenChats] = useState([]);
   const [minimizedChats, setMinimizedChats] = useState([]);
   const [chatMessages, setChatMessages] = useState({});
-  
+
   // Stripe state
   const [stripeStatus, setStripeStatus] = useState({ connected: false, canReceivePayments: false });
   const [showStripeSetup, setShowStripeSetup] = useState(false);
@@ -735,6 +790,11 @@ export default function PennDash() {
   // Toast notification (3-second auto-dismiss)
   const [toast, setToast] = useState('');
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
+
+  // New dashboard state
+  const [activeTab, setActiveTab] = useState('discover');
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderError, setOrderError] = useState('');
 
   useEffect(() => { checkExistingSession(); }, []);
 
@@ -883,18 +943,19 @@ export default function PennDash() {
 
   const handleOrderSubmit = async (e) => {
     e.preventDefault();
+    setOrderError('');
     setError('');
     if (!newOrder.amount || !newOrder.diningHall || !newOrder.dorm) {
-      setError('Fill all required fields');
+      setOrderError('Fill all required fields');
       return;
     }
     const amt = parseFloat(newOrder.amount);
     if (isNaN(amt) || amt <= 0) {
-      setError('Invalid amount');
+      setOrderError('Invalid amount');
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from('orders').insert([{
+    const { error: insertErr } = await supabase.from('orders').insert([{
       user_email: user.email,
       amount: amt,
       dining_hall: newOrder.diningHall,
@@ -906,11 +967,12 @@ export default function PennDash() {
       created_at: new Date().toISOString()
     }]);
     setLoading(false);
-    if (error) {
-      setError('Failed to post order');
+    if (insertErr) {
+      setOrderError('Failed to post order');
       return;
     }
     setNewOrder({ amount: '', diningHall: '', dorm: '', details: '', deliveryTime: 'ASAP' });
+    setShowOrderModal(false);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
     loadOrders();
@@ -928,8 +990,8 @@ export default function PennDash() {
       return;
     }
 
-    const { error } = await supabase.from('orders').update({ status: 'claimed', claimed_by: user.email }).eq('id', order.id);
-    if (error) {
+    const { error: claimErr } = await supabase.from('orders').update({ status: 'claimed', claimed_by: user.email }).eq('id', order.id);
+    if (claimErr) {
       showToast('Failed to claim order — please try again.');
       return;
     }
@@ -1071,46 +1133,60 @@ export default function PennDash() {
       <div style={styles.container}>
         <div style={styles.loadingCard}>
           <div style={styles.spinner}></div>
-          <p>Loading PennDash...</p>
+          <p style={{ color: '#6B7280', fontSize: '15px' }}>Loading PennDash...</p>
         </div>
       </div>
     );
   }
 
   // ============================================
-  // RENDER: LOGIN
+  // RENDER: LOGIN (split-screen)
   // ============================================
   if (currentView === 'login') {
     return (
-      <div style={styles.container}>
-        <div style={styles.loginCard}>
-          <div style={styles.logoSection}>
-            <div style={styles.logo}>
-              <span style={styles.logoIcon}>🍽️</span>
-              <span style={styles.logoText}>PennDash</span>
+      <div style={styles.splitScreen}>
+        {/* Left panel */}
+        <div style={styles.splitLeft}>
+          <div style={styles.splitLeftContent}>
+            <div style={styles.splitLeftLogo}>
+              <span style={{ fontSize: '52px', display: 'block', marginBottom: '16px' }}>🍽️</span>
+              <div style={styles.splitLeftBrand}>PennDash</div>
+              <p style={styles.splitLeftTagline}>The Penn campus delivery marketplace</p>
             </div>
-            <p style={styles.tagline}>Campus Food Delivery</p>
+            <div style={styles.splitLeftBullets}>
+              <div style={styles.splitLeftBullet}><span style={styles.checkmark}>✓</span> Bid-based delivery pricing</div>
+              <div style={styles.splitLeftBullet}><span style={styles.checkmark}>✓</span> Verified Penn students only</div>
+              <div style={styles.splitLeftBullet}><span style={styles.checkmark}>✓</span> Secure Stripe payments</div>
+            </div>
+            <p style={styles.splitLeftFooter}>Built for Quakers, by Quakers</p>
           </div>
-          <form onSubmit={handleEmailSubmit} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Penn Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="pennkey@seas.upenn.edu"
-                style={styles.input}
-                disabled={loading}
-                autoFocus
-              />
-            </div>
-            {error && <p style={styles.error}>{error}</p>}
-            <button type="submit" style={styles.primaryButton} disabled={loading}>
-              {loading ? 'Sending...' : 'Send Verification Code'}
-            </button>
-          </form>
-          <div style={styles.footer}>
-            <div style={styles.secureNotice}>🔒 Secure Penn email verification</div>
+        </div>
+
+        {/* Right panel */}
+        <div style={styles.splitRight}>
+          <div style={styles.splitRightInner}>
+            <button onClick={() => setCurrentView('home')} style={styles.backBtn}>← Back</button>
+            <h1 style={styles.authHeading}>Welcome back</h1>
+            <p style={styles.authSubheading}>Enter your Penn email to continue</p>
+            <form onSubmit={handleEmailSubmit} style={styles.authForm}>
+              <div style={styles.authInputGroup}>
+                <label style={styles.authLabel}>Penn Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="pennkey@seas.upenn.edu"
+                  style={styles.authInput}
+                  disabled={loading}
+                  autoFocus
+                />
+              </div>
+              {error && <p style={styles.authError}>{error}</p>}
+              <button type="submit" style={styles.authBtn} disabled={loading}>
+                {loading ? 'Sending...' : 'Send Verification Code'}
+              </button>
+            </form>
+            <p style={styles.authSecure}>🔒 Secure Penn email verification</p>
           </div>
         </div>
       </div>
@@ -1118,39 +1194,56 @@ export default function PennDash() {
   }
 
   // ============================================
-  // RENDER: VERIFY
+  // RENDER: VERIFY (split-screen)
   // ============================================
   if (currentView === 'verify') {
     return (
-      <div style={styles.container}>
-        <div style={styles.loginCard}>
-          <div style={styles.logoSection}>
-            <div style={styles.logo}>
-              <span style={styles.logoIcon}>📧</span>
-              <span style={styles.logoText}>Check Email</span>
+      <div style={styles.splitScreen}>
+        {/* Left panel */}
+        <div style={styles.splitLeft}>
+          <div style={styles.splitLeftContent}>
+            <div style={styles.splitLeftLogo}>
+              <span style={{ fontSize: '52px', display: 'block', marginBottom: '16px' }}>🍽️</span>
+              <div style={styles.splitLeftBrand}>PennDash</div>
+              <p style={styles.splitLeftTagline}>The Penn campus delivery marketplace</p>
             </div>
-            <p style={styles.tagline}>Code sent to <strong>{email}</strong></p>
+            <div style={styles.splitLeftBullets}>
+              <div style={styles.splitLeftBullet}><span style={styles.checkmark}>✓</span> Bid-based delivery pricing</div>
+              <div style={styles.splitLeftBullet}><span style={styles.checkmark}>✓</span> Verified Penn students only</div>
+              <div style={styles.splitLeftBullet}><span style={styles.checkmark}>✓</span> Secure Stripe payments</div>
+            </div>
+            <p style={styles.splitLeftFooter}>Built for Quakers, by Quakers</p>
           </div>
-          <form onSubmit={handleVerifyCode} style={styles.form}>
-            <VerificationCodeInput value={verificationCode} onChange={setVerificationCode} disabled={loading} />
-            {error && <p style={styles.error}>{error}</p>}
-            {devCode && (
-              <div style={styles.devModeBox}>
-                <p>🧪 Dev code: <strong>{devCode}</strong></p>
-              </div>
-            )}
-            <button type="submit" style={styles.primaryButton} disabled={loading || verificationCode.length !== 6}>
-              {loading ? 'Verifying...' : 'Verify & Login'}
-            </button>
-          </form>
-          <div style={styles.verifyFooter}>
-            <button onClick={handleResendCode} disabled={countdown > 0} style={{ ...styles.linkButton, opacity: countdown > 0 ? 0.5 : 1 }}>
-              {countdown > 0 ? `Resend in ${countdown}s` : 'Resend code'}
-            </button>
-            <span> • </span>
-            <button onClick={() => { setCurrentView('login'); setError(''); }} style={styles.linkButton}>
-              Different email
-            </button>
+        </div>
+
+        {/* Right panel */}
+        <div style={styles.splitRight}>
+          <div style={styles.splitRightInner}>
+            <button onClick={() => { setCurrentView('login'); setError(''); }} style={styles.backBtn}>← Back</button>
+            <h1 style={styles.authHeading}>Check your inbox</h1>
+            <p style={styles.authSubheading}>We sent a 6-digit code to <strong>{email}</strong></p>
+            <form onSubmit={handleVerifyCode} style={styles.authForm}>
+              <VerificationCodeInput value={verificationCode} onChange={setVerificationCode} disabled={loading} />
+              {error && <p style={styles.authError}>{error}</p>}
+              {devCode && (
+                <div style={styles.devModeBox}>
+                  <p>🧪 Dev code: <strong>{devCode}</strong></p>
+                </div>
+              )}
+              <button type="submit" style={{ ...styles.authBtn, opacity: verificationCode.length !== 6 ? 0.6 : 1 }} disabled={loading || verificationCode.length !== 6}>
+                {loading ? 'Verifying...' : 'Verify & Continue'}
+              </button>
+            </form>
+            <div style={styles.verifyLinks}>
+              <button onClick={handleResendCode} disabled={countdown > 0} style={{ ...styles.linkButton, opacity: countdown > 0 ? 0.5 : 1 }}>
+                {countdown > 0 ? `Resend in ${countdown}s` : 'Resend code'}
+              </button>
+              <span style={{ color: '#D1D5DB' }}>·</span>
+              <button onClick={() => { setCurrentView('login'); setError(''); }} style={styles.linkButton}>
+                Use different email
+              </button>
+            </div>
+            <p style={styles.authSecure}>🔒 Secure Penn email verification</p>
           </div>
         </div>
       </div>
@@ -1171,261 +1264,402 @@ export default function PennDash() {
   const myOrders = orders.filter(o => o.user_email === user.email);
   const claimedOrders = orders.filter(o => o.claimed_by === user.email);
 
+  const myOpenOrders = myOrders.filter(o => o.status === 'open');
+  const myAwaitingPayment = myOrders.filter(o => o.status === 'claimed' && o.payment_status !== 'paid');
+  const myAwaitingDelivery = myOrders.filter(o => o.payment_status === 'paid' && o.status !== 'delivered');
+  const deliveringOrders = claimedOrders.filter(o => o.status !== 'delivered');
+
+  const firstName = user.email.split('@')[0];
+  const userInitial = firstName[0].toUpperCase();
+
+  const myOrdersCount = myOpenOrders.length + myAwaitingPayment.length + myAwaitingDelivery.length;
+  const deliveringCount = deliveringOrders.length;
+  const messagesCount = chats.length;
+
   return (
     <div style={styles.dashboardContainer}>
       {/* Toast notification */}
       {toast && <div style={styles.toast}>{toast}</div>}
+      {showSuccess && <div style={{ ...styles.toast, backgroundColor: '#059669' }}>Order posted successfully!</div>}
 
       {/* Header */}
       <header style={styles.header}>
         <div style={styles.headerContent}>
+          {/* Logo */}
           <div style={styles.headerLogo}>
-            <span>🚀</span>
+            <span style={{ fontSize: '22px' }}>🍽️</span>
             <span style={styles.logoTextSmall}>PennDash</span>
           </div>
-          <div style={styles.userInfo}>
+
+          {/* Tab bar */}
+          <nav style={styles.tabBar}>
+            {[
+              { key: 'discover', label: 'Discover', badge: openOrders.length > 0 ? openOrders.length : null },
+              { key: 'my-orders', label: 'My Orders', badge: myOrdersCount > 0 ? myOrdersCount : null },
+              { key: 'delivering', label: 'Delivering', badge: deliveringCount > 0 ? deliveringCount : null },
+              { key: 'messages', label: 'Messages', badge: messagesCount > 0 ? messagesCount : null },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{ ...styles.tabBtn, ...(activeTab === tab.key ? styles.tabBtnActive : {}) }}
+              >
+                {tab.label}
+                {tab.badge && (
+                  <span style={{ ...styles.tabBadge, ...(activeTab === tab.key ? styles.tabBadgeActive : {}) }}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Right side */}
+          <div style={styles.headerRight}>
+            <span style={styles.headerName}>{firstName}</span>
             {stripeStatus.canReceivePayments ? (
-              <button onClick={handleOpenStripeDashboard} style={styles.stripeBadge}>
-                💰 Earnings
+              <button onClick={handleOpenStripeDashboard} style={styles.earningsBtn}>
+                Earnings
               </button>
             ) : (
-              <button onClick={() => setShowStripeSetup(true)} style={styles.setupPaymentsBadge}>
+              <button onClick={() => setShowStripeSetup(true)} style={styles.setupBtn}>
                 Set Up Payments
               </button>
             )}
-            <span style={styles.verifiedBadge}>✓ Verified</span>
-            <span style={styles.userEmail}>{user.email}</span>
-            {chats.length > 0 && <span style={styles.chatIndicator}>💬 {chats.length}</span>}
-            <button onClick={handleLogout} style={styles.logoutButton}>Logout</button>
+            <div style={styles.avatarCircle} title={user.email} onClick={handleLogout}>
+              {userInitial}
+            </div>
           </div>
         </div>
       </header>
 
       <main style={styles.main}>
-        {/* Request Delivery Form */}
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>Request a Delivery</h2>
-          <div style={styles.orderFormCard}>
-            <form onSubmit={handleOrderSubmit} style={styles.orderForm}>
-              <div style={styles.formRow}>
-                <div style={styles.formField}>
-                  <label style={styles.formLabel}>Amount ($) *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newOrder.amount}
-                    onChange={(e) => setNewOrder({...newOrder, amount: e.target.value})}
-                    placeholder="5.00"
-                    style={styles.formInput}
-                  />
-                </div>
-                <div style={styles.formField}>
-                  <label style={styles.formLabel}>Dining Hall *</label>
-                  <select
-                    value={newOrder.diningHall}
-                    onChange={(e) => setNewOrder({...newOrder, diningHall: e.target.value})}
-                    style={styles.formSelect}
-                  >
-                    <option value="">Select...</option>
-                    {DINING_HALLS.map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-                <div style={styles.formField}>
-                  <label style={styles.formLabel}>Deliver To *</label>
-                  <select
-                    value={newOrder.dorm}
-                    onChange={(e) => setNewOrder({...newOrder, dorm: e.target.value})}
-                    style={styles.formSelect}
-                  >
-                    <option value="">Select...</option>
-                    {DORMS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div style={styles.formField}>
-                  <label style={styles.formLabel}>Delivery Time *</label>
-                  <select
-                    value={newOrder.deliveryTime}
-                    onChange={(e) => setNewOrder({...newOrder, deliveryTime: e.target.value})}
-                    style={styles.formSelect}
-                  >
-                    {DELIVERY_TIMES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
+
+        {/* ── DISCOVER TAB ── */}
+        {activeTab === 'discover' && (
+          <div>
+            {/* Sort bar */}
+            <div style={styles.sortBar}>
+              <div style={styles.sortGroup}>
+                <span style={styles.sortLabel}>Sort by</span>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={styles.sortSelect}>
+                  <option value="amount">Amount ($)</option>
+                  <option value="time">Delivery Time</option>
+                  <option value="created_at">Date Posted</option>
+                </select>
+              </div>
+              <div style={styles.sortGroup}>
+                <span style={styles.sortLabel}>Order</span>
+                <select value={sortDir} onChange={(e) => setSortDir(e.target.value)} style={styles.sortSelect}>
+                  <option value="desc">{sortBy === 'time' ? 'Urgent First' : 'High to Low'}</option>
+                  <option value="asc">{sortBy === 'time' ? 'Flexible First' : 'Low to High'}</option>
+                </select>
+              </div>
+              <span style={{ marginLeft: 'auto', fontSize: '14px', color: '#9CA3AF', fontWeight: '500' }}>
+                {openOrders.length} open {openOrders.length === 1 ? 'order' : 'orders'}
+              </span>
+            </div>
+
+            {openOrders.length === 0 ? (
+              <div style={styles.emptyState}>
+                <span style={styles.emptyIcon}>🍔</span>
+                <p style={styles.emptyTitle}>No orders yet</p>
+                <p style={styles.emptyDesc}>Be the first to post one!</p>
+              </div>
+            ) : (
+              <div style={styles.ordersGrid}>
+                {openOrders.map(order => {
+                  const isOwn = order.user_email === user.email;
+                  const timeBadge = order.delivery_time === 'ASAP' ? 'ASAP' : order.delivery_time;
+                  return (
+                    <div key={order.id} style={styles.orderCard}>
+                      <div style={styles.orderCardTop}>
+                        <div style={styles.orderHall}>
+                          <span style={{ marginRight: '6px' }}>🏪</span>
+                          {order.dining_hall}
+                        </div>
+                        <span style={{
+                          ...styles.timeBadge,
+                          backgroundColor: order.delivery_time === 'ASAP' ? '#FEF3C7' : '#EFF6FF',
+                          color: order.delivery_time === 'ASAP' ? '#92400E' : '#1D4ED8'
+                        }}>
+                          {timeBadge}
+                        </span>
+                      </div>
+
+                      <div style={styles.orderAmount}>${order.amount?.toFixed(2)}</div>
+
+                      <div style={styles.orderRoute}>
+                        <span style={{ fontSize: '14px' }}>📍</span>
+                        <span style={styles.orderRouteText}>→ {order.dorm}</span>
+                      </div>
+
+                      {order.details && (
+                        <p style={styles.orderNotes}>"{order.details}"</p>
+                      )}
+
+                      <div style={styles.orderCardFooter}>
+                        <span style={styles.orderTime}>{formatTime(order.created_at)}</span>
+                      </div>
+
+                      <div style={styles.orderDivider} />
+
+                      {isOwn ? (
+                        <button onClick={() => handleCancelOrder(order.id)} style={styles.cancelButton}>
+                          Cancel Order
+                        </button>
+                      ) : (
+                        <button onClick={() => handleClaimOrder(order)} style={styles.claimButton}>
+                          {stripeStatus.canReceivePayments ? 'Claim & Deliver →' : '⚡ Set Up to Claim'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── MY ORDERS TAB ── */}
+        {activeTab === 'my-orders' && (
+          <div style={styles.tabContent}>
+            {myOpenOrders.length > 0 && (
+              <div style={styles.subSection}>
+                <h2 style={styles.subSectionTitle}>Open Orders</h2>
+                <div style={styles.activityList}>
+                  {myOpenOrders.map(order => (
+                    <div key={order.id} style={styles.activityItem}>
+                      <div style={styles.activityInfo}>
+                        <div style={styles.activityIcon}>🏪</div>
+                        <div>
+                          <div style={styles.activityMain}>${order.amount?.toFixed(2)} · {order.dining_hall}</div>
+                          <div style={styles.activitySub}>→ {order.dorm} · {formatTime(order.created_at)}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => handleCancelOrder(order.id)} style={styles.cancelBtnSmall}>Cancel</button>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div style={styles.formField}>
-                <label style={styles.formLabel}>Details (Optional)</label>
+            )}
+
+            {myAwaitingPayment.length > 0 && (
+              <div style={styles.subSection}>
+                <h2 style={styles.subSectionTitle}>Awaiting Payment</h2>
+                <div style={styles.activityList}>
+                  {myAwaitingPayment.map(order => (
+                    <div key={order.id} style={styles.activityItem}>
+                      <div style={styles.activityInfo}>
+                        <div style={styles.activityIcon}>💳</div>
+                        <div>
+                          <div style={styles.activityMain}>${order.amount?.toFixed(2)} · {order.dining_hall}</div>
+                          <div style={styles.activitySub}>Claimed by {order.claimed_by?.split('@')[0]}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => handlePayOrder(order)} style={styles.payNowButton}>Pay Now</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {myAwaitingDelivery.length > 0 && (
+              <div style={styles.subSection}>
+                <h2 style={styles.subSectionTitle}>Awaiting Delivery</h2>
+                <div style={styles.activityList}>
+                  {myAwaitingDelivery.map(order => (
+                    <div key={order.id} style={styles.activityItem}>
+                      <div style={styles.activityInfo}>
+                        <div style={styles.activityIcon}>📦</div>
+                        <div>
+                          <div style={styles.activityMain}>${order.amount?.toFixed(2)} · {order.dining_hall}</div>
+                          <div style={styles.activitySub}>Delivery by {order.claimed_by?.split('@')[0]}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => handleMarkDelivered(order.id)} style={styles.confirmButton}>
+                        Confirm Received
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {myOrdersCount === 0 && (
+              <div style={styles.emptyState}>
+                <span style={styles.emptyIcon}>📋</span>
+                <p style={styles.emptyTitle}>No orders yet</p>
+                <p style={styles.emptyDesc}>Post a delivery request using the button below</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── DELIVERING TAB ── */}
+        {activeTab === 'delivering' && (
+          <div style={styles.tabContent}>
+            {deliveringOrders.length > 0 ? (
+              <div style={styles.activityList}>
+                {deliveringOrders.map(order => (
+                  <div key={order.id} style={styles.activityItem}>
+                    <div style={styles.activityInfo}>
+                      <div style={styles.activityIcon}>🚴</div>
+                      <div>
+                        <div style={styles.activityMain}>${order.amount?.toFixed(2)} · {order.dining_hall} → {order.dorm}</div>
+                        {order.payment_status === 'paid' ? (
+                          <div style={{ ...styles.activitySub, color: '#059669' }}>Paid — ready to deliver</div>
+                        ) : (
+                          <div style={{ ...styles.activitySub, color: '#D97706' }}>Waiting for payment</div>
+                        )}
+                      </div>
+                    </div>
+                    {order.payment_status === 'paid' ? (
+                      <button onClick={() => handleMarkDelivered(order.id)} style={styles.deliveredButton}>
+                        Mark Delivered
+                      </button>
+                    ) : (
+                      <span style={styles.waitingChip}>Awaiting payment</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={styles.emptyState}>
+                <span style={styles.emptyIcon}>🚴</span>
+                <p style={styles.emptyTitle}>No active deliveries</p>
+                <p style={styles.emptyDesc}>Go to Discover to claim an order</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── MESSAGES TAB ── */}
+        {activeTab === 'messages' && (
+          <div style={styles.tabContent}>
+            {chats.length > 0 ? (
+              <div style={styles.activityList}>
+                {chats.map(chat => {
+                  const other = chat.requester_email === user.email ? chat.deliverer_email : chat.requester_email;
+                  const otherName = other.split('@')[0];
+                  return (
+                    <div key={chat.id} style={styles.activityItem}>
+                      <div style={styles.activityInfo}>
+                        <div style={chatStyles.chatListAvatar}>{otherName[0].toUpperCase()}</div>
+                        <div>
+                          <div style={styles.activityMain}>{otherName}</div>
+                          <div style={styles.activitySub}>${chat.order_amount?.toFixed(2)} · {chat.dining_hall}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => handleOpenChat(chat.id)} style={styles.openChatBtn}>Open Chat</button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={styles.emptyState}>
+                <span style={styles.emptyIcon}>💬</span>
+                <p style={styles.emptyTitle}>No active chats</p>
+                <p style={styles.emptyDesc}>Chats open automatically when an order is claimed</p>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Floating Post Order button */}
+      <button
+        style={styles.fabButton}
+        onClick={() => { setShowOrderModal(true); setOrderError(''); }}
+      >
+        <span style={{ fontSize: '22px', lineHeight: 1 }}>+</span>
+        <span style={{ fontSize: '14px', fontWeight: '700' }}>Post Order</span>
+      </button>
+
+      {/* Order Form Modal */}
+      {showOrderModal && (
+        <div style={modalStyles.overlay} onClick={() => setShowOrderModal(false)}>
+          <div style={{ ...modalStyles.modal, maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
+            <div style={modalStyles.header}>
+              <h2 style={modalStyles.title}>Post a Delivery Request</h2>
+              <button onClick={() => setShowOrderModal(false)} style={modalStyles.closeBtn}>✕</button>
+            </div>
+            <form onSubmit={handleOrderSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div style={styles.modalFieldRow}>
+                <div style={styles.modalField}>
+                  <label style={styles.modalLabel}>Bid Amount *</label>
+                  <div style={styles.amountInputWrap}>
+                    <span style={styles.amountPrefix}>$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newOrder.amount}
+                      onChange={(e) => setNewOrder({ ...newOrder, amount: e.target.value })}
+                      placeholder="0.00"
+                      style={styles.amountInput}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Dining Hall *</label>
+                <select
+                  value={newOrder.diningHall}
+                  onChange={(e) => setNewOrder({ ...newOrder, diningHall: e.target.value })}
+                  style={styles.modalSelect}
+                >
+                  <option value="">Select a dining hall...</option>
+                  {DINING_HALLS.map(h => <option key={h} value={h}>{h}</option>)}
+                </select>
+              </div>
+
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Deliver To *</label>
+                <select
+                  value={newOrder.dorm}
+                  onChange={(e) => setNewOrder({ ...newOrder, dorm: e.target.value })}
+                  style={styles.modalSelect}
+                >
+                  <option value="">Select a dorm...</option>
+                  {DORMS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Delivery Time *</label>
+                <select
+                  value={newOrder.deliveryTime}
+                  onChange={(e) => setNewOrder({ ...newOrder, deliveryTime: e.target.value })}
+                  style={styles.modalSelect}
+                >
+                  {DELIVERY_TIMES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Order Details (Optional)</label>
                 <textarea
                   value={newOrder.details}
-                  onChange={(e) => setNewOrder({...newOrder, details: e.target.value})}
-                  placeholder="e.g., 2 sandwiches, room 305"
-                  style={styles.formTextarea}
+                  onChange={(e) => setNewOrder({ ...newOrder, details: e.target.value })}
+                  placeholder="e.g., 2 sandwiches and a drink, room 305..."
+                  style={styles.modalTextarea}
                 />
               </div>
-              {error && <p style={styles.formError}>{error}</p>}
-              {showSuccess && <p style={styles.formSuccess}>✓ Order posted!</p>}
-              <button type="submit" style={styles.submitButton}>
-                {loading ? 'Posting...' : 'Post Delivery Request'}
+
+              {orderError && <p style={styles.modalError}>{orderError}</p>}
+
+              <div style={{ padding: '12px 16px', backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', fontSize: '13px', color: '#92400E' }}>
+                💡 Higher bids get picked up faster
+              </div>
+
+              <button type="submit" style={styles.modalSubmitBtn} disabled={loading}>
+                {loading ? 'Posting...' : 'Post Request'}
               </button>
             </form>
           </div>
-        </section>
-
-        {/* Available Deliveries */}
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>
-            Available Deliveries
-            <span style={styles.orderCount}>{openOrders.length} open</span>
-          </h2>
-          <div style={styles.sortBar}>
-            <div style={styles.sortGroup}>
-              <span style={styles.sortLabel}>Sort by</span>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={styles.sortSelect}>
-                <option value="amount">Amount ($)</option>
-                <option value="time">Delivery Time</option>
-                <option value="created_at">Date Posted</option>
-              </select>
-            </div>
-            <div style={styles.sortGroup}>
-              <span style={styles.sortLabel}>Order</span>
-              <select value={sortDir} onChange={(e) => setSortDir(e.target.value)} style={styles.sortSelect}>
-                <option value="desc">{sortBy === 'time' ? 'Urgent First' : 'High to Low'}</option>
-                <option value="asc">{sortBy === 'time' ? 'Flexible First' : 'Low to High'}</option>
-              </select>
-            </div>
-          </div>
-          {openOrders.length === 0 ? (
-            <div style={styles.emptyState}>
-              <span style={styles.emptyIcon}>📭</span>
-              <p>No delivery requests available</p>
-            </div>
-          ) : (
-            <div style={styles.ordersGrid}>
-              {openOrders.map(order => (
-                <div key={order.id} style={styles.orderCard}>
-                  <div style={styles.orderHeader}>
-                    <span style={styles.orderAmount}>${order.amount?.toFixed(2)}</span>
-                    <div style={styles.orderMeta}>
-                      <span style={styles.deliveryTimeBadge}>🕐 {getDeliveryByTime(order.created_at, order.delivery_time)}</span>
-                      <span style={styles.orderTime}>{formatTime(order.created_at)}</span>
-                    </div>
-                  </div>
-                  <div style={styles.orderDetails}>
-                    <div style={styles.orderRoute}>
-                      <span style={styles.routeFrom}>{order.dining_hall}</span>
-                      <span style={styles.routeArrow}>→</span>
-                      <span style={styles.routeTo}>{order.dorm}</span>
-                    </div>
-                    {order.details && <p style={styles.orderNotes}>"{order.details}"</p>}
-                  </div>
-                  <div style={styles.orderActions}>
-                    {order.user_email === user.email ? (
-                      <button onClick={() => handleCancelOrder(order.id)} style={styles.cancelButton}>Cancel</button>
-                    ) : (
-                      <button onClick={() => handleClaimOrder(order)} style={styles.claimButton}>
-                        {stripeStatus.canReceivePayments ? 'Claim & Deliver' : '⚡ Set Up to Claim'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* My Orders - Need Payment */}
-        {myOrders.filter(o => o.status === 'claimed' && o.payment_status !== 'paid').length > 0 && (
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>💳 Orders Awaiting Payment</h2>
-            <div style={styles.activityList}>
-              {myOrders.filter(o => o.status === 'claimed' && o.payment_status !== 'paid').map(order => (
-                <div key={order.id} style={styles.activityItem}>
-                  <div style={styles.activityInfo}>
-                    <div>
-                      <strong>${order.amount?.toFixed(2)}</strong> • {order.dining_hall}<br/>
-                      <span style={{color:'#64748b', fontSize: '14px'}}>Claimed by {order.claimed_by?.split('@')[0]}</span>
-                    </div>
-                  </div>
-                  <button onClick={() => handlePayOrder(order)} style={styles.payNowButton}>
-                    💳 Pay Now
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Deliveries I'm Doing */}
-        {claimedOrders.filter(o => o.status !== 'delivered').length > 0 && (
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>🚴 Deliveries I'm Doing</h2>
-            <div style={styles.activityList}>
-              {claimedOrders.filter(o => o.status !== 'delivered').map(order => (
-                <div key={order.id} style={styles.activityItem}>
-                  <div style={styles.activityInfo}>
-                    <div>
-                      <strong>${order.amount?.toFixed(2)}</strong> • {order.dining_hall} → {order.dorm}<br/>
-                      <span style={{ color: '#64748b', fontSize: '14px' }}>
-                        {order.payment_status === 'paid' ? '💳 Paid — ready to deliver' : '⏳ Waiting for requester payment'}
-                      </span>
-                    </div>
-                  </div>
-                  {order.payment_status === 'paid' && (
-                    <button onClick={() => handleMarkDelivered(order.id)} style={styles.deliveredButton}>
-                      ✓ Mark Delivered
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* My Paid Orders — Awaiting Delivery */}
-        {myOrders.filter(o => o.payment_status === 'paid' && o.status !== 'delivered').length > 0 && (
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>📦 Awaiting Delivery</h2>
-            <div style={styles.activityList}>
-              {myOrders.filter(o => o.payment_status === 'paid' && o.status !== 'delivered').map(order => (
-                <div key={order.id} style={styles.activityItem}>
-                  <div style={styles.activityInfo}>
-                    <div>
-                      <strong>${order.amount?.toFixed(2)}</strong> • {order.dining_hall}<br/>
-                      <span style={{ color: '#64748b', fontSize: '14px' }}>Delivery by {order.claimed_by?.split('@')[0]}</span>
-                    </div>
-                  </div>
-                  <button onClick={() => handleMarkDelivered(order.id)} style={styles.confirmButton}>
-                    ✓ Confirm Received
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Active Chats */}
-        {chats.length > 0 && (
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>💬 Active Chats</h2>
-            <div style={styles.activityList}>
-              {chats.map(chat => {
-                const other = chat.requester_email === user.email ? chat.deliverer_email : chat.requester_email;
-                return (
-                  <div key={chat.id} style={styles.activityItem}>
-                    <div style={styles.activityInfo}>
-                      <div style={chatStyles.chatListAvatar}>{other.split('@')[0][0].toUpperCase()}</div>
-                      <div>
-                        <strong>{other.split('@')[0]}</strong><br/>
-                        <span style={{color:'#64748b'}}>${chat.order_amount?.toFixed(2)} • {chat.dining_hall}</span>
-                      </div>
-                    </div>
-                    <button onClick={() => handleOpenChat(chat.id)} style={chatStyles.openChatButton}>💬 Open</button>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-      </main>
+        </div>
+      )}
 
       {/* Chat Popups */}
       <div style={chatStyles.chatContainer}>
@@ -1479,26 +1713,26 @@ export default function PennDash() {
 // MODAL STYLES
 // ============================================
 const modalStyles = {
-  overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 },
-  modal: { backgroundColor: 'white', borderRadius: '20px', width: '90%', maxWidth: '420px', maxHeight: '90vh', overflow: 'auto' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' },
-  title: { margin: 0, fontSize: '20px', fontWeight: '700', color: '#1e293b' },
-  closeBtn: { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b', padding: '4px' },
-  orderSummary: { padding: '20px 24px', backgroundColor: '#f8fafc' },
+  overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px' },
+  modal: { backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '420px', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.15)' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 24px', borderBottom: '1px solid #F3F4F6' },
+  title: { margin: 0, fontSize: '20px', fontWeight: '700', color: '#111827' },
+  closeBtn: { background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#9CA3AF', padding: '4px', lineHeight: 1, borderRadius: '6px' },
+  orderSummary: { padding: '20px 24px', backgroundColor: '#F9FAFB', borderBottom: '1px solid #F3F4F6' },
   summaryRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' },
-  divider: { height: '1px', backgroundColor: '#e2e8f0', margin: '12px 0' },
+  divider: { height: '1px', backgroundColor: '#E5E7EB', margin: '12px 0' },
   cardForm: { padding: '20px 24px' },
   formField: { marginBottom: '16px' },
-  label: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  input: { width: '100%', padding: '14px 16px', fontSize: '16px', border: '2px solid #e2e8f0', borderRadius: '10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' },
-  error: { color: '#dc2626', fontSize: '14px', margin: '0 24px 16px', padding: '12px 16px', backgroundColor: '#fef2f2', borderRadius: '8px' },
-  payButton: { width: 'calc(100% - 48px)', margin: '0 24px 16px', padding: '16px 24px', fontSize: '16px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #059669, #10b981)', border: 'none', borderRadius: '12px', cursor: 'pointer' },
-  secureNote: { textAlign: 'center', color: '#64748b', fontSize: '13px', padding: '0 24px 24px' },
+  label: { display: 'block', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.6px' },
+  input: { width: '100%', padding: '14px 16px', fontSize: '16px', border: '2px solid #E5E7EB', borderRadius: '10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' },
+  error: { color: '#DC2626', fontSize: '14px', margin: '0 24px 16px', padding: '12px 16px', backgroundColor: '#FEF2F2', borderRadius: '8px' },
+  payButton: { width: 'calc(100% - 48px)', margin: '0 24px 16px', padding: '16px 24px', fontSize: '16px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #059669, #10b981)', border: 'none', borderRadius: '12px', cursor: 'pointer', fontFamily: 'inherit' },
+  secureNote: { textAlign: 'center', color: '#9CA3AF', fontSize: '13px', padding: '0 24px 24px' },
   successContent: { padding: '48px 24px', textAlign: 'center' },
   setupContent: { padding: '24px' },
   benefitsList: { marginBottom: '24px' },
-  benefitItem: { padding: '12px 16px', backgroundColor: '#f0fdf4', borderRadius: '8px', marginBottom: '8px', color: '#166534', fontSize: '14px' },
-  stripeCardWrapper: { border: '2px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', backgroundColor: 'white', marginTop: '6px' }
+  benefitItem: { padding: '12px 16px', backgroundColor: '#F0FDF4', borderRadius: '8px', marginBottom: '8px', color: '#166534', fontSize: '14px', fontWeight: '500' },
+  stripeCardWrapper: { border: '2px solid #E5E7EB', borderRadius: '10px', padding: '14px 16px', backgroundColor: 'white', marginTop: '6px' }
 };
 
 // ============================================
@@ -1507,119 +1741,186 @@ const modalStyles = {
 const chatStyles = {
   chatContainer: { position: 'fixed', bottom: 0, right: 0, zIndex: 1000, pointerEvents: 'none' },
   chatWrapper: { position: 'fixed', bottom: 0, pointerEvents: 'auto' },
-  chatPopup: { width: '320px', height: '450px', backgroundColor: 'white', borderRadius: '12px 12px 0 0', boxShadow: '0 -4px 20px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  minimizedChat: { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', backgroundColor: '#011F5B', borderRadius: '12px 12px 0 0', cursor: 'pointer', color: 'white', minWidth: '200px' },
-  minimizedAvatar: { width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '600' },
+  chatPopup: { width: '320px', height: '460px', backgroundColor: 'white', borderRadius: '14px 14px 0 0', boxShadow: '0 -4px 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  minimizedChat: { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 18px', backgroundColor: '#011F5B', borderRadius: '12px 12px 0 0', cursor: 'pointer', color: 'white', minWidth: '200px' },
+  minimizedAvatar: { width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700' },
   minimizedName: { fontWeight: '600', fontSize: '14px' },
-  chatHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: '#011F5B', color: 'white' },
+  chatHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', backgroundColor: '#011F5B', color: 'white' },
   chatHeaderInfo: { display: 'flex', alignItems: 'center', gap: '10px' },
-  chatAvatar: { width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '600' },
-  chatHeaderText: { display: 'flex', flexDirection: 'column' },
-  chatHeaderName: { fontWeight: '600', fontSize: '14px' },
-  chatHeaderSub: { fontSize: '11px', opacity: 0.8 },
+  chatAvatar: { width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: '700' },
+  chatHeaderText: { display: 'flex', flexDirection: 'column', gap: '1px' },
+  chatHeaderName: { fontWeight: '700', fontSize: '14px' },
+  chatHeaderSub: { fontSize: '11px', opacity: 0.65 },
   chatHeaderActions: { display: 'flex', gap: '4px' },
-  chatHeaderBtn: { width: '28px', height: '28px', borderRadius: '6px', border: 'none', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' },
-  orderBanner: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: '#f0f9ff', borderBottom: '1px solid #e0f2fe' },
-  orderBannerText: { fontSize: '12px', color: '#0369a1' },
-  messagesContainer: { flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#f8fafc' },
-  emptyMessages: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', textAlign: 'center' },
+  chatHeaderBtn: { width: '28px', height: '28px', borderRadius: '6px', border: 'none', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '600' },
+  orderBanner: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: '#EFF6FF', borderBottom: '1px solid #DBEAFE' },
+  orderBannerText: { fontSize: '12px', color: '#1D4ED8', fontWeight: '500' },
+  messagesContainer: { flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#F9FAFB' },
+  emptyMessages: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', textAlign: 'center' },
   messageRow: { display: 'flex', alignItems: 'flex-end', gap: '8px' },
-  messageAvatar: { width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600', color: '#475569', flexShrink: 0 },
-  messageBubble: { maxWidth: '75%', padding: '10px 14px', borderRadius: '16px' },
+  messageAvatar: { width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: '#4B5563', flexShrink: 0 },
+  messageBubble: { maxWidth: '76%', padding: '10px 14px', borderRadius: '18px' },
   messageBubbleMine: { backgroundColor: '#011F5B', color: 'white', borderBottomRightRadius: '4px' },
-  messageBubbleTheirs: { backgroundColor: 'white', color: '#1e293b', borderBottomLeftRadius: '4px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' },
-  messageText: { margin: 0, fontSize: '14px', lineHeight: '1.4', wordBreak: 'break-word' },
+  messageBubbleTheirs: { backgroundColor: 'white', color: '#111827', borderBottomLeftRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' },
+  messageText: { margin: 0, fontSize: '14px', lineHeight: '1.45', wordBreak: 'break-word' },
   messageTime: { fontSize: '10px', marginTop: '4px', display: 'block' },
-  inputContainer: { display: 'flex', gap: '8px', padding: '12px 16px', backgroundColor: 'white', borderTop: '1px solid #e2e8f0' },
-  messageInput: { flex: 1, padding: '10px 14px', border: '1px solid #e2e8f0', borderRadius: '20px', fontSize: '14px', outline: 'none', fontFamily: 'inherit' },
-  sendButton: { width: '40px', height: '40px', borderRadius: '50%', border: 'none', backgroundColor: '#011F5B', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' },
+  inputContainer: { display: 'flex', gap: '8px', padding: '12px 14px', backgroundColor: 'white', borderTop: '1px solid #F3F4F6' },
+  messageInput: { flex: 1, padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: '22px', fontSize: '14px', outline: 'none', fontFamily: 'inherit', backgroundColor: '#F9FAFB' },
+  sendButton: { width: '38px', height: '38px', borderRadius: '50%', border: 'none', backgroundColor: '#011F5B', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', flexShrink: 0 },
   openChatButton: { padding: '8px 14px', backgroundColor: '#011F5B', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
-  chatListAvatar: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#011F5B', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '600', marginRight: '12px' }
+  chatListAvatar: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#011F5B', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', marginRight: '14px', flexShrink: 0 }
 };
 
 // ============================================
 // MAIN STYLES
 // ============================================
 const styles = {
-  container: { minHeight: '100vh', background: 'linear-gradient(135deg, #011F5B 0%, #1a3a7a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' },
+  container: { minHeight: '100vh', background: 'linear-gradient(135deg, #011F5B 0%, #01174a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' },
   loadingCard: { background: 'white', padding: '48px', borderRadius: '20px', textAlign: 'center' },
-  spinner: { width: '48px', height: '48px', border: '4px solid #e2e8f0', borderTopColor: '#011F5B', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' },
-  loginCard: { background: 'white', borderRadius: '24px', padding: '48px', width: '100%', maxWidth: '440px', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' },
-  logoSection: { textAlign: 'center', marginBottom: '36px' },
-  logo: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '12px' },
-  logoIcon: { fontSize: '36px' },
-  logoText: { fontSize: '32px', fontWeight: '700', color: '#011F5B' },
-  tagline: { color: '#64748b', fontSize: '16px', margin: 0 },
-  form: { display: 'flex', flexDirection: 'column', gap: '20px' },
-  inputGroup: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  label: { fontSize: '14px', fontWeight: '600', color: '#374151' },
-  input: { padding: '16px 20px', fontSize: '16px', border: '2px solid #e5e7eb', borderRadius: '12px', outline: 'none', fontFamily: 'inherit' },
-  error: { color: '#dc2626', fontSize: '14px', margin: 0, padding: '12px 16px', backgroundColor: '#fef2f2', borderRadius: '8px' },
-  primaryButton: { padding: '16px 24px', fontSize: '16px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #990000, #c41e3a)', border: 'none', borderRadius: '12px', cursor: 'pointer', fontFamily: 'inherit' },
+  spinner: { width: '40px', height: '40px', border: '3px solid #F3F4F6', borderTopColor: '#011F5B', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' },
+
+  // Split-screen auth
+  splitScreen: { display: 'flex', minHeight: '100vh' },
+  splitLeft: {
+    width: '40%', minHeight: '100vh',
+    background: 'linear-gradient(160deg, #011F5B 0%, #01174a 50%, #000d2e 100%)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: '48px 40px',
+    '@media (max-width: 768px)': { display: 'none' }
+  },
+  splitLeftContent: { display: 'flex', flexDirection: 'column', gap: '0', height: '100%', justifyContent: 'space-between', maxWidth: '320px' },
+  splitLeftLogo: { marginBottom: '48px' },
+  splitLeftBrand: { fontSize: '36px', fontWeight: '800', color: 'white', letterSpacing: '-0.5px', marginBottom: '10px' },
+  splitLeftTagline: { fontSize: '16px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 },
+  splitLeftBullets: { display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '48px' },
+  splitLeftBullet: { display: 'flex', alignItems: 'center', gap: '12px', fontSize: '15px', color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
+  checkmark: { width: '22px', height: '22px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#86EFAC', flexShrink: 0 },
+  splitLeftFooter: { fontSize: '13px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.2px' },
+
+  splitRight: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 40px', backgroundColor: 'white' },
+  splitRightInner: { width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column' },
+  backBtn: { background: 'none', border: 'none', color: '#6B7280', fontSize: '14px', fontWeight: '500', cursor: 'pointer', padding: '0', marginBottom: '32px', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '4px' },
+  authHeading: { fontSize: '28px', fontWeight: '800', color: '#111827', margin: '0 0 8px', letterSpacing: '-0.5px' },
+  authSubheading: { fontSize: '15px', color: '#6B7280', margin: '0 0 32px', lineHeight: 1.5 },
+  authForm: { display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '20px' },
+  authInputGroup: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  authLabel: { fontSize: '13px', fontWeight: '600', color: '#374151', letterSpacing: '0.2px' },
+  authInput: { padding: '14px 16px', fontSize: '16px', border: '2px solid #E5E7EB', borderRadius: '12px', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s', width: '100%', boxSizing: 'border-box' },
+  authError: { color: '#DC2626', fontSize: '14px', margin: 0, padding: '12px 16px', backgroundColor: '#FEF2F2', borderRadius: '8px' },
+  authBtn: { padding: '15px 24px', fontSize: '16px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg, #990000, #c41e3a)', border: 'none', borderRadius: '12px', cursor: 'pointer', fontFamily: 'inherit', width: '100%' },
+  authSecure: { textAlign: 'center', color: '#9CA3AF', fontSize: '13px', marginTop: '20px' },
+  verifyLinks: { display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', marginTop: '16px' },
+  linkButton: { background: 'none', border: 'none', color: '#011F5B', fontSize: '14px', fontWeight: '500', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' },
+  devModeBox: { backgroundColor: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '10px', padding: '14px', textAlign: 'center', fontSize: '14px' },
   codeInputContainer: { display: 'flex', gap: '8px', justifyContent: 'center' },
-  codeInput: { width: '52px', height: '64px', fontSize: '24px', fontWeight: '700', textAlign: 'center', border: '2px solid #e5e7eb', borderRadius: '12px', outline: 'none', fontFamily: 'inherit' },
-  codeInputFilled: { borderColor: '#011F5B', backgroundColor: '#f8fafc' },
-  devModeBox: { backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '12px', padding: '16px', textAlign: 'center' },
-  footer: { marginTop: '32px', textAlign: 'center' },
-  secureNotice: { display: 'inline-flex', padding: '8px 16px', backgroundColor: '#ecfdf5', color: '#059669', borderRadius: '20px', fontSize: '13px', fontWeight: '500' },
-  verifyFooter: { marginTop: '24px', textAlign: 'center' },
-  linkButton: { background: 'none', border: 'none', color: '#011F5B', fontSize: '14px', fontWeight: '500', cursor: 'pointer', textDecoration: 'underline' },
-  dashboardContainer: { minHeight: '100vh', backgroundColor: '#f8fafc' },
-  header: { background: 'linear-gradient(135deg, #011F5B, #1a3a7a)', padding: '16px 24px', position: 'sticky', top: 0, zIndex: 100 },
-  headerContent: { maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' },
-  headerLogo: { display: 'flex', alignItems: 'center', gap: '10px', color: 'white', fontSize: '24px' },
-  logoTextSmall: { fontSize: '22px', fontWeight: '700', color: 'white' },
-  userInfo: { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' },
-  verifiedBadge: { padding: '4px 12px', backgroundColor: 'rgba(16,185,129,0.2)', color: '#10b981', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
-  stripeBadge: { padding: '6px 14px', backgroundColor: '#059669', color: 'white', borderRadius: '20px', fontSize: '12px', fontWeight: '600', border: 'none', cursor: 'pointer' },
-  setupPaymentsBadge: { padding: '6px 14px', backgroundColor: '#f59e0b', color: 'white', borderRadius: '20px', fontSize: '12px', fontWeight: '600', border: 'none', cursor: 'pointer' },
-  chatIndicator: { padding: '4px 12px', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
-  userEmail: { color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '500' },
-  logoutButton: { padding: '8px 16px', fontSize: '14px', fontWeight: '500', color: '#011F5B', backgroundColor: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' },
-  main: { maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' },
-  section: { marginBottom: '40px' },
-  sectionTitle: { fontSize: '22px', fontWeight: '700', color: '#1e293b', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' },
-  orderCount: { fontSize: '14px', fontWeight: '500', color: '#64748b', backgroundColor: '#e2e8f0', padding: '4px 12px', borderRadius: '20px' },
-  sortBar: { display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' },
+  codeInput: { width: '52px', height: '64px', fontSize: '24px', fontWeight: '700', textAlign: 'center', border: '2px solid #E5E7EB', borderRadius: '12px', outline: 'none', fontFamily: 'inherit' },
+  codeInputFilled: { borderColor: '#011F5B', backgroundColor: '#F8FAFC' },
+
+  // Dashboard
+  dashboardContainer: { minHeight: '100vh', backgroundColor: '#F9FAFB' },
+  header: { backgroundColor: 'white', borderBottom: '1px solid #F3F4F6', padding: '0 24px', position: 'sticky', top: 0, zIndex: 100 },
+  headerContent: { maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0', height: '60px' },
+  headerLogo: { display: 'flex', alignItems: 'center', gap: '8px', marginRight: '32px', flexShrink: 0 },
+  logoTextSmall: { fontSize: '18px', fontWeight: '800', color: '#011F5B', letterSpacing: '-0.3px' },
+
+  // Tab bar
+  tabBar: { display: 'flex', alignItems: 'center', flex: 1, gap: '0', height: '100%' },
+  tabBtn: {
+    padding: '0 18px', height: '60px',
+    background: 'none', border: 'none',
+    borderBottom: '2px solid transparent',
+    fontSize: '14px', fontWeight: '500',
+    color: '#6B7280', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', gap: '6px',
+    whiteSpace: 'nowrap', fontFamily: 'inherit',
+    transition: 'color 0.15s, border-color 0.15s'
+  },
+  tabBtnActive: { color: '#011F5B', borderBottomColor: '#011F5B', fontWeight: '600' },
+  tabBadge: { padding: '2px 7px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', backgroundColor: '#F3F4F6', color: '#6B7280' },
+  tabBadgeActive: { backgroundColor: '#011F5B', color: 'white' },
+
+  headerRight: { display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto', flexShrink: 0 },
+  headerName: { fontSize: '14px', fontWeight: '600', color: '#374151' },
+  earningsBtn: { padding: '7px 14px', fontSize: '13px', fontWeight: '600', color: 'white', backgroundColor: '#059669', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' },
+  setupBtn: { padding: '7px 14px', fontSize: '13px', fontWeight: '600', color: 'white', backgroundColor: '#D97706', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' },
+  avatarCircle: { width: '34px', height: '34px', borderRadius: '50%', backgroundColor: '#011F5B', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '700', cursor: 'pointer', flexShrink: 0 },
+
+  main: { maxWidth: '1200px', margin: '0 auto', padding: '28px 24px 100px' },
+  tabContent: { display: 'flex', flexDirection: 'column', gap: '32px' },
+  subSection: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  subSectionTitle: { fontSize: '16px', fontWeight: '700', color: '#111827', margin: 0 },
+
+  // Sort bar
+  sortBar: { display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' },
   sortGroup: { display: 'flex', alignItems: 'center', gap: '8px' },
-  sortLabel: { fontSize: '14px', fontWeight: '500', color: '#64748b' },
-  sortSelect: { padding: '8px 12px', fontSize: '14px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: 'white', cursor: 'pointer' },
-  orderFormCard: { background: 'white', borderRadius: '16px', padding: '28px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' },
-  orderForm: { display: 'flex', flexDirection: 'column', gap: '20px' },
-  formRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' },
-  formField: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  formLabel: { fontSize: '13px', fontWeight: '600', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  formInput: { padding: '14px 16px', fontSize: '16px', border: '2px solid #e2e8f0', borderRadius: '10px', outline: 'none', fontFamily: 'inherit' },
-  formSelect: { padding: '14px 16px', fontSize: '16px', border: '2px solid #e2e8f0', borderRadius: '10px', outline: 'none', fontFamily: 'inherit', backgroundColor: 'white' },
-  formTextarea: { padding: '14px 16px', fontSize: '16px', border: '2px solid #e2e8f0', borderRadius: '10px', outline: 'none', fontFamily: 'inherit', minHeight: '80px', resize: 'vertical' },
-  formError: { color: '#dc2626', fontSize: '14px', margin: 0, padding: '12px 16px', backgroundColor: '#fef2f2', borderRadius: '8px' },
-  formSuccess: { color: '#059669', fontSize: '14px', margin: 0, padding: '12px 16px', backgroundColor: '#ecfdf5', borderRadius: '8px', fontWeight: '500' },
-  submitButton: { padding: '16px 24px', fontSize: '16px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #990000, #c41e3a)', border: 'none', borderRadius: '12px', cursor: 'pointer', alignSelf: 'flex-start' },
-  emptyState: { textAlign: 'center', padding: '60px 20px', backgroundColor: 'white', borderRadius: '16px', border: '2px dashed #e2e8f0' },
-  emptyIcon: { fontSize: '48px', display: 'block', marginBottom: '16px' },
-  ordersGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' },
-  orderCard: { background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' },
-  orderHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' },
-  orderMeta: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' },
-  deliveryTimeBadge: { padding: '4px 10px', backgroundColor: '#dbeafe', color: '#1d4ed8', borderRadius: '12px', fontSize: '12px', fontWeight: '600' },
-  orderAmount: { fontSize: '28px', fontWeight: '700', color: '#059669' },
-  orderTime: { fontSize: '13px', color: '#94a3b8', fontWeight: '500' },
-  orderDetails: { marginBottom: '20px' },
-  orderRoute: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' },
-  routeFrom: { fontSize: '15px', fontWeight: '600', color: '#1e293b' },
-  routeArrow: { color: '#94a3b8', fontSize: '18px' },
-  routeTo: { fontSize: '15px', fontWeight: '600', color: '#1e293b' },
-  orderNotes: { fontSize: '14px', color: '#64748b', margin: 0, padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px', fontStyle: 'italic' },
-  orderActions: { display: 'flex', gap: '12px' },
-  claimButton: { flex: 1, padding: '12px 20px', fontSize: '15px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #011F5B, #1a3a7a)', border: 'none', borderRadius: '10px', cursor: 'pointer' },
-  cancelButton: { flex: 1, padding: '12px 20px', fontSize: '15px', fontWeight: '500', color: '#dc2626', backgroundColor: '#fef2f2', border: '2px solid #fecaca', borderRadius: '10px', cursor: 'pointer' },
-  payNowButton: { padding: '10px 20px', fontSize: '14px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #059669, #10b981)', border: 'none', borderRadius: '8px', cursor: 'pointer' },
-  deliveredButton: { padding: '10px 20px', fontSize: '14px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #059669, #10b981)', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' },
-  confirmButton: { padding: '10px 20px', fontSize: '14px', fontWeight: '600', color: 'white', background: 'linear-gradient(135deg, #7c3aed, #8b5cf6)', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' },
-  toast: { position: 'fixed', top: '80px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#1e293b', color: 'white', padding: '12px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', pointerEvents: 'none' },
-  activityList: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  activityItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0' },
-  activityInfo: { display: 'flex', alignItems: 'center' }
+  sortLabel: { fontSize: '13px', fontWeight: '500', color: '#9CA3AF' },
+  sortSelect: { padding: '8px 12px', fontSize: '14px', border: '1.5px solid #E5E7EB', borderRadius: '8px', backgroundColor: 'white', cursor: 'pointer', color: '#374151', fontFamily: 'inherit', outline: 'none' },
+
+  // Order cards (food-delivery style)
+  ordersGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' },
+  orderCard: { background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06)', border: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '10px' },
+  orderCardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  orderHall: { fontSize: '14px', fontWeight: '600', color: '#374151', display: 'flex', alignItems: 'center' },
+  timeBadge: { padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
+  orderAmount: { fontSize: '32px', fontWeight: '800', color: '#059669', letterSpacing: '-0.5px', lineHeight: 1.1 },
+  orderRoute: { display: 'flex', alignItems: 'center', gap: '6px' },
+  orderRouteText: { fontSize: '14px', color: '#4B5563', fontWeight: '500' },
+  orderNotes: { fontSize: '13px', color: '#6B7280', margin: 0, padding: '10px 12px', backgroundColor: '#F9FAFB', borderRadius: '8px', fontStyle: 'italic', lineHeight: 1.5 },
+  orderCardFooter: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end' },
+  orderTime: { fontSize: '12px', color: '#9CA3AF', fontWeight: '500' },
+  orderDivider: { height: '1px', backgroundColor: '#F3F4F6', margin: '4px 0' },
+  claimButton: { width: '100%', padding: '12px 20px', fontSize: '15px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg, #011F5B, #1a3a7a)', border: 'none', borderRadius: '10px', cursor: 'pointer', fontFamily: 'inherit' },
+  cancelButton: { width: '100%', padding: '12px 20px', fontSize: '14px', fontWeight: '600', color: '#DC2626', backgroundColor: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: '10px', cursor: 'pointer', fontFamily: 'inherit' },
+
+  // Activity items
+  activityList: { display: 'flex', flexDirection: 'column', gap: '10px' },
+  activityItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #F3F4F6', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', gap: '12px' },
+  activityInfo: { display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 },
+  activityIcon: { fontSize: '24px', flexShrink: 0 },
+  activityMain: { fontSize: '15px', fontWeight: '600', color: '#111827', margin: '0 0 2px' },
+  activitySub: { fontSize: '13px', color: '#6B7280', margin: 0 },
+
+  // Action buttons
+  payNowButton: { padding: '9px 18px', fontSize: '13px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg, #059669, #10b981)', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0 },
+  deliveredButton: { padding: '9px 18px', fontSize: '13px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg, #059669, #10b981)', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0 },
+  confirmButton: { padding: '9px 18px', fontSize: '13px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg, #7c3aed, #8b5cf6)', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0 },
+  cancelBtnSmall: { padding: '7px 14px', fontSize: '13px', fontWeight: '600', color: '#DC2626', backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 },
+  waitingChip: { padding: '6px 12px', backgroundColor: '#FEF3C7', color: '#92400E', borderRadius: '20px', fontSize: '12px', fontWeight: '600', flexShrink: 0 },
+  openChatBtn: { padding: '9px 18px', fontSize: '13px', fontWeight: '700', color: '#011F5B', backgroundColor: '#EFF6FF', border: '1.5px solid #DBEAFE', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0 },
+
+  // Empty state
+  emptyState: { textAlign: 'center', padding: '80px 20px', backgroundColor: 'white', borderRadius: '16px', border: '2px dashed #E5E7EB' },
+  emptyIcon: { fontSize: '52px', display: 'block', marginBottom: '16px' },
+  emptyTitle: { fontSize: '18px', fontWeight: '700', color: '#374151', margin: '0 0 8px' },
+  emptyDesc: { fontSize: '15px', color: '#9CA3AF', margin: 0 },
+
+  // Floating action button
+  fabButton: {
+    position: 'fixed', bottom: '28px', right: '28px',
+    display: 'flex', alignItems: 'center', gap: '8px',
+    padding: '14px 22px',
+    background: 'linear-gradient(135deg, #990000, #c41e3a)',
+    color: 'white', border: 'none', borderRadius: '28px',
+    cursor: 'pointer', zIndex: 500,
+    boxShadow: '0 4px 20px rgba(153,0,0,0.4)',
+    fontFamily: 'inherit', fontWeight: '700',
+    fontSize: '14px'
+  },
+
+  // Toast
+  toast: { position: 'fixed', top: '72px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#111827', color: 'white', padding: '12px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', zIndex: 9999, boxShadow: '0 4px 16px rgba(0,0,0,0.2)', pointerEvents: 'none', whiteSpace: 'nowrap' },
+
+  // Modal form fields
+  modalField: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  modalFieldRow: { display: 'flex', gap: '14px' },
+  modalLabel: { fontSize: '13px', fontWeight: '600', color: '#374151', letterSpacing: '0.2px' },
+  modalSelect: { padding: '12px 14px', fontSize: '15px', border: '2px solid #E5E7EB', borderRadius: '10px', outline: 'none', fontFamily: 'inherit', backgroundColor: 'white', color: '#111827', cursor: 'pointer' },
+  modalTextarea: { padding: '12px 14px', fontSize: '15px', border: '2px solid #E5E7EB', borderRadius: '10px', outline: 'none', fontFamily: 'inherit', minHeight: '80px', resize: 'vertical', color: '#111827' },
+  modalError: { color: '#DC2626', fontSize: '14px', margin: 0, padding: '12px 14px', backgroundColor: '#FEF2F2', borderRadius: '8px' },
+  modalSubmitBtn: { padding: '14px 24px', fontSize: '16px', fontWeight: '700', color: 'white', background: 'linear-gradient(135deg, #011F5B, #1a3a7a)', border: 'none', borderRadius: '12px', cursor: 'pointer', fontFamily: 'inherit', marginTop: '4px' },
+  amountInputWrap: { display: 'flex', alignItems: 'center', border: '2px solid #E5E7EB', borderRadius: '10px', overflow: 'hidden', backgroundColor: 'white' },
+  amountPrefix: { padding: '12px 14px', fontSize: '20px', fontWeight: '700', color: '#059669', backgroundColor: '#F0FDF4', borderRight: '2px solid #E5E7EB', flexShrink: 0 },
+  amountInput: { flex: 1, padding: '12px 14px', fontSize: '20px', fontWeight: '700', border: 'none', outline: 'none', fontFamily: 'inherit', color: '#059669' },
 };
 
 // Add keyframes + landing page animation classes
@@ -1628,7 +1929,7 @@ if (typeof document !== 'undefined') {
   style.textContent = `
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes pd-bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(10px); } }
-    @keyframes pd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    @keyframes pd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     .pd-animate { opacity: 0; transform: translateY(36px); transition: opacity 0.7s ease, transform 0.7s ease; }
     .pd-animate.pd-visible { opacity: 1; transform: translateY(0); }
     .pd-delay-1 { transition-delay: 0.1s; }
