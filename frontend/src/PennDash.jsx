@@ -476,7 +476,7 @@ const ls = {
 
   hero: {
     minHeight: '100vh',
-    backgroundImage: 'linear-gradient(rgba(1,31,91,0.82), rgba(1,31,91,0.82)), url("https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?auto=format&fit=crop&w=1400&q=80")',
+    backgroundImage: 'linear-gradient(rgba(1,31,91,0.72), rgba(0,10,40,0.78)), url("/penn-campus.png")',
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -1835,7 +1835,7 @@ const styles = {
     whiteSpace: 'nowrap', fontFamily: 'inherit',
     transition: 'color 0.15s, border-color 0.15s'
   },
-  tabBtnActive: { color: '#011F5B', borderBottomColor: '#011F5B', fontWeight: '600' },
+  tabBtnActive: { color: '#011F5B', borderBottom: '2px solid #011F5B', fontWeight: '600' },
   tabBadge: { padding: '2px 7px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', backgroundColor: '#F3F4F6', color: '#6B7280' },
   tabBadgeActive: { backgroundColor: '#011F5B', color: 'white' },
 
